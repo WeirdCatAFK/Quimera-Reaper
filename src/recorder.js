@@ -6,6 +6,10 @@ const path = require("path");
 const fs = require("fs");
 require("dotenv").config();
 
+// Set absolute paths for FFmpeg/FFprobe if provided in .env
+if (process.env.FFMPEG_PATH) ffmpeg.setFfmpegPath(process.env.FFMPEG_PATH);
+if (process.env.FFPROBE_PATH) ffmpeg.setFfprobePath(process.env.FFPROBE_PATH);
+
 class Recorder {
   async recordSong(song, outputPath, logger = console.log, agent) {
     const page = await browserManager.newPage();
@@ -13,14 +17,12 @@ class Recorder {
 
     try {
       await page.goto(song.url, { waitUntil: "networkidle2" });
+      await page.bringToFront();
       
-      // 1. Wait for player and handle Ads
+      // 1. Wait for player UI
       await page.waitForSelector("ytmusic-player-bar", { timeout: 30000 });
       
-      logger(`Checking for ads and preparing player...`, "info");
-      await this.preparePlayer(page, logger);
-
-      // 2. Start capturing the stream
+      // 2. Start capturing the stream FIRST
       const stream = await getStream(page, {
         audio: true,
         video: false,
@@ -29,20 +31,51 @@ class Recorder {
 
       const settings = settingsManager.get();
       const bitrate = settings.audioBitrate || 192;
-      const tempWebm = path.join(path.dirname(outputPath), `temp_${Date.now()}.webm`);
-      const webmFile = fs.createWriteStream(tempWebm);
+      const tempWebm = path.join(__dirname, `../temp_harvest_${Date.now()}.webm`);
       
-      stream.pipe(webmFile);
-      logger(`Harvesting audio stream...`, "sync");
+      const webmFile = fs.createWriteStream(tempWebm);
+      let chunksReceived = 0;
 
-      // 3. Monitor playback until the end
+      stream.on("data", () => { chunksReceived++; });
+      webmFile.on("error", (err) => logger(`Writer Error: ${err.message}`, "error"));
+      stream.on("error", (err) => logger(`Stream Error: ${err.message}`, "error"));
+
+      stream.pipe(webmFile);
+
+      // 3. NOW prepare player and start playback
+      logger(`Checking for ads and triggering playback...`, "info");
+      await this.preparePlayer(page, logger);
+      
+      logger(`Harvesting audio to temp storage...`, "sync");
+
+      // 4. Monitor playback until the end
       await this.monitorPlayback(page, logger, agent);
 
       // 4. Stop stream and clean up
-      stream.destroy();
-      webmFile.end();
+      logger(`Finalizing stream (Chunks captured: ${chunksReceived})...`, "info");
       
-      logger(`Finalizing harvest (${bitrate}kbps)...`, "sync");
+      await new Promise((resolve) => {
+          stream.unpipe(webmFile);
+          webmFile.end();
+          webmFile.on("finish", resolve);
+          stream.destroy();
+      });
+
+      // Release OS lock
+      await new Promise(r => setTimeout(r, 1500));
+
+      const stats = fs.existsSync(tempWebm) ? fs.statSync(tempWebm) : null;
+      const finalSize = stats ? stats.size : 0;
+      logger(`File flushed to disk: ${Math.round(finalSize/1024)} KB`, "info");
+
+      if (finalSize === 0) {
+          if (chunksReceived === 0) {
+              throw new Error("No audio data received from browser. Check if Brave is muted or blocking audio.");
+          }
+          throw new Error("Stream finalized but file is empty on disk.");
+      }
+      
+      logger(`Converting to MP3...`, "sync");
 
       // 5. Convert to MP3
       await this.convertToMp3(tempWebm, outputPath, bitrate);
@@ -56,7 +89,7 @@ class Recorder {
       logger(`Verifying file integrity...`, "info");
       await this.verifyAudio(outputPath);
 
-      const stats = fs.statSync(outputPath);
+      stats = fs.statSync(outputPath);
       logger(`Harvest Complete: ${song.title}`, "success");
       logger(`Saved to: ${outputPath}`, "info");
       logger(`File Size: ${Math.round(stats.size/1024/1024 * 100)/100} MB`, "info");
@@ -93,9 +126,16 @@ class Recorder {
     await page.evaluate(async () => {
       // Force volume to 100% internally
       const player = document.getElementById("movie_player") || document.querySelector("ytmusic-player-bar");
-      if (player && typeof player.setVolume === "function") {
-        player.setVolume(100);
-        player.unMute();
+      if (player) {
+        if (typeof player.setVolume === "function") {
+            player.setVolume(100);
+            player.unMute();
+        }
+        // CRITICAL: Attempt to disable autoplay
+        // This is a common YTM internal setting
+        if (typeof player.setAutonavState === "function") {
+            player.setAutonavState(2); // 2 usually means OFF
+        }
       }
 
       // Ensure song is playing
@@ -105,27 +145,32 @@ class Recorder {
       }
     });
 
-    // Ad Detection Loop
+    // ... (Ad Detection Loop)
     let adDetected = true;
-    while (adDetected) {
+    let attempts = 0;
+    while (adDetected && attempts < 30) { 
       adDetected = await page.evaluate(() => {
         const ad = document.querySelector(".ad-showing, .ytmusic-ad-interrupt-renderer");
+        const skipBtn = document.querySelector(".ytp-ad-skip-button, .ytmusic-skip-ad-button");
+        if (skipBtn) skipBtn.click();
         return !!ad;
       });
       if (adDetected) {
-        logger("Ad detected. Waiting for it to finish...", "wait");
+        logger("Ad detected. Attempting to skip...", "wait");
         await new Promise(r => setTimeout(r, 2000));
       }
+      attempts++;
     }
   }
 
   async monitorPlayback(page, logger, agent) {
     return new Promise(async (resolve, reject) => {
       let lastCurrent = -1;
+      let lastTotal = -1;
       let stalledCount = 0;
+      let startTime = Date.now();
 
       const checkInterval = setInterval(async () => {
-        // CRITICAL: Check if agent was stopped
         if (agent && !agent.isReaping) {
             clearInterval(checkInterval);
             reject(new Error("Agent stopped by user."));
@@ -134,18 +179,42 @@ class Recorder {
 
         const progress = await page.evaluate(() => {
           const timeInfo = document.querySelector(".time-info")?.innerText; 
-          if (!timeInfo) return null;
-          const [currentStr, totalStr] = timeInfo.split("/").map(t => t.trim());
+          if (!timeInfo || !timeInfo.includes("/")) return null;
           
-          const toSec = (s) => s.split(":").reduce((acc, t) => (60 * acc) + +t, 0);
+          const parts = timeInfo.split("/");
+          const toSec = (s) => {
+              const p = s.trim().split(":");
+              if (p.length === 2) return (parseInt(p[0]) * 60) + parseInt(p[1]);
+              if (p.length === 3) return (parseInt(p[0]) * 3600) + (parseInt(p[1]) * 60) + parseInt(p[2]);
+              return 0;
+          };
+
           return { 
-            current: toSec(currentStr), 
-            total: toSec(totalStr),
-            text: timeInfo 
+            current: toSec(parts[0]), 
+            total: toSec(parts[1]),
+            text: timeInfo.trim()
           };
         });
 
         if (progress) {
+          // 1. Check for mid-song ad interruption
+          const isAd = await page.evaluate(() => !!document.querySelector(".ad-showing"));
+          if (isAd) {
+              logger("Mid-song Ad detected. Waiting...", "wait");
+              await page.evaluate(() => document.querySelector(".ytp-ad-skip-button")?.click());
+              return; 
+          }
+
+          // 2. DETECT SONG JUMP (Autoplay safety)
+          // If the total duration changed by more than 5 seconds, the song has switched
+          if (lastTotal !== -1 && Math.abs(progress.total - lastTotal) > 5) {
+              logger(`Detected song transition (${lastTotal}s -> ${progress.total}s). Saving current harvest.`, "info");
+              clearInterval(checkInterval);
+              resolve();
+              return;
+          }
+          lastTotal = progress.total;
+
           if (progress.current === lastCurrent && progress.current !== 0) {
             stalledCount++;
           } else {
@@ -154,15 +223,16 @@ class Recorder {
           }
           lastCurrent = progress.current;
 
-          // If playback stalls for 15 seconds, something is wrong
-          if (stalledCount > 3) {
+          if (stalledCount > 10) { // 50 seconds of no movement
             clearInterval(checkInterval);
             reject(new Error("Playback stalled."));
           }
 
-          if (progress.current >= progress.total && progress.total > 0) {
+          // 3. Normal Completion
+          if (progress.total > 10 && progress.current >= progress.total - 1) {
+            logger(`Song reached end: ${progress.text}`, "info");
             clearInterval(checkInterval);
-            resolve();
+            setTimeout(resolve, 1000); 
           }
         }
       }, 5000);

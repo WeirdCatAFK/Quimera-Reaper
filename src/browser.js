@@ -40,7 +40,10 @@ class BrowserManager {
         "--disable-blink-features=AutomationControlled",
         `--profile-directory=${profile}`,
         "--restore-last-session",
-        "--enable-features=NetworkService,NetworkServiceInProcess"
+        "--enable-features=NetworkService,NetworkServiceInProcess",
+        "--use-fake-ui-for-media-stream",
+        "--allow-http-screen-capture",
+        "--disable-features=AudioServiceOutOfProcess"
       ],
     });
 

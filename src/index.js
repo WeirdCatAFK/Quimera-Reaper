@@ -21,6 +21,7 @@ class QuimeraAgent extends EventEmitter {
     this.history = this.loadJSON(HISTORY_FILE, {});
     this.isSyncing = false;
     this.isReaping = false;
+    this.currentLogFile = null;
     
     // Auto-sync schedule (every 4 hours)
     cron.schedule("0 */4 * * *", () => this.syncAll());
@@ -29,7 +30,7 @@ class QuimeraAgent extends EventEmitter {
     cron.schedule("0 * * * *", () => this.processQueue());
   }
 
-  // ... (loadJSON, saveJSON, log, etc. are the same)
+  // ... (loadJSON, saveJSON, etc.)
   loadJSON(file, fallback) {
     if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, "utf8"));
     return fallback;
@@ -40,8 +41,16 @@ class QuimeraAgent extends EventEmitter {
   }
 
   log(message, type = "info") {
+    const timestamp = new Date().toISOString();
+    const logLine = `[${timestamp}] [${type.toUpperCase()}] ${message}\n`;
     console.log(`[${type.toUpperCase()}] ${message}`);
-    this.emit("log", { message, type, timestamp: new Date().toISOString() });
+    
+    if (!this.currentLogFile) {
+        this.currentLogFile = path.join(__dirname, `../logs/session_${Date.now()}.log`);
+    }
+    fs.appendFileSync(this.currentLogFile, logLine);
+
+    this.emit("log", { message, type, timestamp });
   }
 
   async addSubscription(target, mode) {
