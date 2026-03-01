@@ -7,6 +7,7 @@ const scraper = require("./scraper");
 const recorder = require("./recorder");
 const metadata = require("./metadata");
 const settingsManager = require("./settings");
+const YTDlpWrap = require("yt-dlp-wrap").default;
 require("dotenv").config();
 
 const SUBS_FILE = "./subscriptions.json";
@@ -23,11 +24,26 @@ class QuimeraAgent extends EventEmitter {
     this.isReaping = false;
     this.currentLogFile = null;
     
+    this.ensureBinary();
+
     // Auto-sync schedule (every 4 hours)
     cron.schedule("0 */4 * * *", () => this.syncAll());
     
     // Auto-reap schedule (every hour if queue has items)
     cron.schedule("0 * * * *", () => this.processQueue());
+  }
+
+  async ensureBinary() {
+    const binaryPath = path.join(__dirname, "../yt-dlp.exe");
+    if (!fs.existsSync(binaryPath)) {
+        this.log("YT-DLP Engine missing. Downloading core components...", "info");
+        try {
+            await YTDlpWrap.downloadFromGithub(binaryPath);
+            this.log("Core components ready.", "success");
+        } catch (err) {
+            this.log(`Failed to download core components: ${err.message}`, "error");
+        }
+    }
   }
 
   // ... (loadJSON, saveJSON, etc.)

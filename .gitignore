@@ -23,8 +23,15 @@ settings.json
 temp_*/
 temp_*.mp3
 temp_*.webm
+temp_cookies.txt
+
+# Test Artifacts
+tests/output/
+tests/debug_segments/
+yt-dlp.exe
 
 # System Files
 .DS_Store
 Thumbs.db
 desktop.ini
+logs/
