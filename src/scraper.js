@@ -45,6 +45,9 @@ class Scraper {
     console.log(`Navigating to: ${url}`);
     
     await page.goto(url, { waitUntil: "networkidle2" });
+    
+    // Give it a moment to settle dynamic elements
+    await new Promise(r => setTimeout(r, 2000));
 
     // Wait for the song list to appear
     await page.waitForSelector("ytmusic-responsive-list-item-renderer", { timeout: 30000 });
@@ -53,61 +56,81 @@ class Scraper {
     await this.autoScroll(page);
 
     const songs = await page.evaluate(() => {
-      // 1. Try to get header metadata (useful for album pages)
-      const header = document.querySelector("ytmusic-detail-header-renderer");
-      const headerTitle = header?.querySelector(".title")?.innerText;
-      const headerArtist = header?.querySelector(".subtitle a")?.innerText || header?.querySelector(".subtitle")?.innerText;
-      const isAlbumPage = window.location.href.includes("browse/MPREb_") || window.location.href.includes("list=OLAK5uy");
+      // 1. Get header metadata (Primary source for albums)
+      const header = document.querySelector("ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer");
+      const headerTitle = header?.querySelector(".title")?.innerText?.trim();
+      
+      // Better artist from header: check strapline-text first
+      let headerArtist = "";
+      const subtitleLinks = header?.querySelectorAll(".subtitle a, .strapline-text a");
+      if (subtitleLinks && subtitleLinks.length > 0) {
+          headerArtist = Array.from(subtitleLinks).map(a => a.innerText.trim()).join(", ");
+      } else {
+          headerArtist = header?.querySelector(".subtitle, .strapline-text")?.innerText?.split("•")[0]?.trim();
+      }
+
+      const url = window.location.href;
+      const sectionList = document.querySelector("ytmusic-section-list-renderer");
+      const pageType = sectionList?.getAttribute("page-type");
+      
+      const isAlbumPage = pageType === "MUSIC_PAGE_TYPE_ALBUM" || 
+                          url.includes("browse/MPREb_") || 
+                          url.includes("list=OLAK5uy") || 
+                          url.includes("privately_owned_release_detail");
 
       const items = Array.from(document.querySelectorAll("ytmusic-responsive-list-item-renderer"));
+      
       return items.map(item => {
         const titleEl = item.querySelector(".title-column .title");
         const flexColumns = Array.from(item.querySelectorAll(".secondary-flex-columns yt-formatted-string"));
-        const lengthEl = item.querySelector(".fixed-columns yt-formatted-string");
         const imgEl = item.querySelector("img");
-        const links = Array.from(item.querySelectorAll(".secondary-flex-columns a"));
         
-        // Extract all text parts across all columns, splitting by dot
-        let allParts = [];
-        flexColumns.forEach(col => {
-            const text = col.innerText;
-            if (text) {
-                text.split("•").forEach(p => {
-                    const cleanP = p.trim();
-                    if (cleanP) allParts.push(cleanP);
-                });
+        const columnTexts = flexColumns.map(c => c.innerText.trim());
+        const allLinks = Array.from(item.querySelectorAll(".secondary-flex-columns a"));
+
+        let artist = "";
+        let album = "";
+
+        const junkPattern = /\d+(\.\d+)?\s*(M|k|K)?\s*(reproducciones|views|vistas|visualizaciones|vists)/i;
+
+        if (isAlbumPage) {
+            // FORCE: Use the global album title from the header
+            album = headerTitle || "Unknown Album";
+            
+            // For artist, find the first non-junk part
+            const cleanParts = columnTexts.map(t => t.split("•")[0].trim()).filter(t => !junkPattern.test(t));
+            artist = allLinks[0]?.innerText || cleanParts[0] || headerArtist || "Unknown Artist";
+        } else {
+            const clean = (s) => {
+                if (!s) return "";
+                const yearPattern = /^\d{4}$/;
+                const timePattern = /^\d+:\d+/;
+                if (junkPattern.test(s) || yearPattern.test(s) || timePattern.test(s)) return "";
+                return s.split("•")[0].trim();
+            };
+
+            const candidates = columnTexts.map(clean).filter(v => v.length > 0);
+            
+            if (allLinks.length >= 2) {
+                artist = allLinks[0].innerText;
+                album = allLinks[1].innerText;
+            } else if (allLinks.length === 1) {
+                artist = allLinks[0].innerText;
+                album = candidates.find(c => c !== artist) || "Unknown Album";
+            } else {
+                artist = candidates[0] || "Unknown Artist";
+                album = candidates[1] || candidates[0] || "Unknown Album";
             }
-        });
-
-        // Filter out view counts and dates from parts
-        const viewPattern = /\d+(\.\d+)?\s*(M|k|K)?\s*(reproducciones|views|vistas|visualizaciones|vists)/i;
-        const yearPattern = /^\d{4}$/;
-        allParts = allParts.filter(p => !viewPattern.test(p) && !yearPattern.test(p));
-
-        let artist = links[0]?.innerText || allParts[0] || (isAlbumPage ? headerArtist : "");
-        let album = links[1]?.innerText || allParts[1] || (isAlbumPage ? headerTitle : "");
-
-        // If it's an album page and we only found one part in the row, 
-        // that part is usually the artist, and the album is in the header.
-        if (isAlbumPage && allParts.length === 1) {
-            artist = allParts[0];
-            album = headerTitle;
         }
 
-        artist = artist?.trim() || "Unknown Artist";
-        album = album?.trim() || "Unknown Album";
-
-        let artwork = imgEl?.src || "";
-        if (artwork.includes("=w120-h120")) {
-            artwork = artwork.replace("=w120-h120", "=w600-h600");
-        }
+        const finalize = (s) => s.replace(/[\r\n\t]/g, " ").replace(/\s+/g, " ").trim();
 
         return {
-          title: titleEl?.innerText || "Unknown Title",
-          artist,
-          album,
-          artwork,
-          duration: lengthEl?.innerText || "0:00",
+          title: finalize(titleEl?.innerText || "Unknown Title"),
+          artist: finalize(artist),
+          album: finalize(album),
+          artwork: (imgEl?.src || "").replace("=w120-h120", "=w600-h600"),
+          duration: item.querySelector(".fixed-columns yt-formatted-string")?.innerText || "0:00",
           url: item.querySelector(".title-column .title a")?.href
         };
       });

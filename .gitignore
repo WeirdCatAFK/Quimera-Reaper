@@ -25,10 +25,10 @@ temp_*.mp3
 temp_*.webm
 temp_cookies.txt
 
-# Test Artifacts
 tests/output/
 tests/debug_segments/
 yt-dlp.exe
+dom_dump.json
 
 # System Files
 .DS_Store
