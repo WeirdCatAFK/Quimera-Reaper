@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Environment / Credentials
+.env
+.env.local
+
+# Browser Data (Contains session cookies and large profile data)
+user_data/
+
+# Output Data (The actual music collection)
+music_library/
+*.mp3
+*.webm
+
+# Local State (Persistent database files)
+sync_history.json
+reap_queue.json
+subscriptions.json
+settings.json
+
+# Temporary files
+temp_*/
+temp_*.mp3
+temp_*.webm
+
+# System Files
+.DS_Store
+Thumbs.db
+desktop.ini
