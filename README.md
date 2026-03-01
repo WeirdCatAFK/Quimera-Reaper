@@ -45,7 +45,7 @@ A Chromium-based browser is required. We highly recommend **Brave** for its nati
    ```bash
    npm start
    ```
-   Open `http://localhost:3000` and click **"Browser Login"**. Log into YouTube Music in the window that appears. This session is saved and reused.
+   Open `http://localhost:3000`. If you need to log in or handle a captcha, ensure no other Brave windows are open, and the agent will use your existing system profile. You can also manually open Brave, log into YouTube Music, and then close it before starting the agent.
 
 ---
 

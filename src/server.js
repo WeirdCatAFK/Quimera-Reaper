@@ -82,6 +82,25 @@ app.post("/api/stop", (req, res) => {
 agent.on("log", (log) => io.emit("log", log));
 agent.on("status", (status) => io.emit("status", status));
 
+app.get("/api/graph", (req, res) => {
+  const history = agent.history;
+  const nodes = [{ id: "CORE", label: "REAPER", group: 0 }];
+  const links = [];
+  const artists = new Set();
+
+  Object.values(history).forEach(track => {
+    if (!artists.has(track.artist)) {
+      artists.add(track.artist);
+      nodes.push({ id: track.artist, label: track.artist, group: 1 });
+      links.push({ source: "CORE", target: track.artist });
+    }
+    nodes.push({ id: track.url, label: track.title, group: 2, status: track.status });
+    links.push({ source: track.artist, target: track.url });
+  });
+
+  res.json({ nodes, links });
+});
+
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Quimera Reaper Active: http://localhost:${PORT}`);

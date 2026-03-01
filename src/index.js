@@ -90,8 +90,17 @@ class QuimeraAgent extends EventEmitter {
       if (targets.albums) {
         this.log("Mirroring Library Albums...");
         const albumUrls = await scraper.getLibraryAlbums();
+        
+        let albumCount = 0;
         for (const albumUrl of albumUrls) {
           await this.syncPlaylistOrAlbum(albumUrl);
+          albumCount++;
+
+          // Cool-down every 5 albums to prevent throttling/timeout
+          if (albumCount % 5 === 0 && albumCount < albumUrls.length) {
+              this.log(`Cooling down after 5 albums...`, "wait");
+              await new Promise(r => setTimeout(r, 10000));
+          }
         }
       }
       // Add Playlists/Videos logic here if needed
@@ -145,14 +154,13 @@ class QuimeraAgent extends EventEmitter {
     this.log("System history reset.", "warn");
   }
 
-  createPlaceholder(track, finalPath) {
+  async createPlaceholder(track, finalPath) {
     const finalDir = path.dirname(finalPath);
     if (!fs.existsSync(finalDir)) fs.mkdirSync(finalDir, { recursive: true });
     
     // Create a 1-second silent MP3 as placeholder
-    // (In a real scenario, we could use a pre-made tiny silent mp3)
     fs.writeFileSync(finalPath, Buffer.alloc(0)); 
-    metadata.tagAndOrganize(track, finalPath);
+    await metadata.tagAndOrganize(track, finalPath);
   }
 
   async processQueue() {

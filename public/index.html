@@ -5,291 +5,156 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quimera Reaper Agent</title>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         :root {
-            --bg: #000000;
-            --card: #080808;
-            --pink: #f472b6;
-            --red: #ef4444;
-            --text: #ffffff;
-            --grey: #52525b;
+            --bg: #181413; --card: #1c1817; --pink: #DD4A62; --red: #DA0000; --mauve: #AE3D4B; --text: #ffffff; --grey: #71717a;
         }
-
         body {
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: 'Inter', -apple-system, system-ui, sans-serif;
-            margin: 0;
-            padding: 40px;
-            display: flex;
-            flex-direction: column;
-            gap: 30px;
-            height: 100vh;
-            box-sizing: border-box;
-            overflow: hidden;
+            background-color: var(--bg); color: var(--text); font-family: 'Inter', sans-serif;
+            margin: 0; padding: 20px; height: 100vh; width: 100vw; box-sizing: border-box;
+            overflow: hidden; display: grid;
+            grid-template-areas: "header header header" "left center right" "actions actions actions";
+            grid-template-columns: 320px 1fr 350px; grid-template-rows: auto 1fr auto; gap: 15px;
         }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            border-bottom: 1px solid var(--pink);
-            padding-bottom: 20px;
-        }
-
-        h1 {
-            color: var(--red);
-            margin: 0;
-            font-size: 2rem;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: -1px;
-        }
-
-        .status-tag {
-            font-size: 0.7rem;
-            color: var(--pink);
-            font-weight: 800;
-            letter-spacing: 2px;
-        }
-
-        .main-grid {
-            display: grid;
-            grid-template-columns: 1fr 380px;
-            gap: 25px;
-            flex: 1;
-            min-height: 0;
-        }
-
-        .console-container {
-            display: flex;
-            flex-direction: column;
-            border: 1px solid var(--pink);
-            background: var(--card);
-            overflow: hidden;
-        }
-
-        .console-header {
-            background: #111;
-            padding: 10px 20px;
-            border-bottom: 1px solid var(--pink);
-            font-size: 0.65rem;
-            color: var(--red);
-            font-weight: 900;
-            text-transform: uppercase;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .console {
-            flex: 1;
-            padding: 20px;
-            font-family: 'JetBrains Mono', 'Consolas', monospace;
-            overflow-y: auto;
-            color: var(--text);
-            font-size: 0.9rem;
-            line-height: 1.6;
-        }
-
-        .sidebar {
-            border: 1px solid var(--pink);
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            min-height: 0;
-        }
-
-        h2 {
-            font-size: 0.75rem;
-            margin: 0;
-            color: var(--red);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            font-weight: 900;
-        }
-
-        .harvest-list {
-            flex-grow: 1;
-            overflow-y: auto;
-            font-size: 0.8rem;
-            color: var(--grey);
-        }
-
-        .controls-row {
-            display: grid;
-            grid-template-columns: 1.2fr 1fr 1fr;
-            gap: 20px;
-        }
-
-        .card {
-            background: var(--card);
-            border: 1px solid var(--pink);
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .gimmick-slot {
-            background: repeating-linear-gradient(45deg, #000, #000 10px, #050505 10px, #050505 20px);
-            border: 1px dashed var(--pink);
-            opacity: 0.6;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--pink);
-            font-size: 0.65rem;
-            font-weight: 900;
-            text-align: center;
-            letter-spacing: 2px;
-        }
-
-        .checkbox-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .checkbox-item input { accent-color: var(--red); width: 16px; height: 16px; }
-
-        input[type="number"], input[type="text"] {
-            background: #000;
-            border: 1px solid #333;
-            color: white;
-            padding: 8px 12px;
-            font-size: 0.8rem;
-            width: 100%;
-            box-sizing: border-box;
-            outline: none;
-        }
-
+        header { grid-area: header; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--pink); padding-bottom: 10px; z-index: 10; position: relative;}
+        h1 { color: var(--red); margin: 0; font-size: 1.8rem; text-transform: uppercase; font-weight: 900; letter-spacing: -1px; text-shadow: 0 0 10px rgba(218,0,0,0.4); }
+        .status-tag { font-size: 0.7rem; color: var(--mauve); font-weight: 800; letter-spacing: 2px; }
+        .card { background: var(--card); border: 1px solid var(--pink); padding: 15px; display: flex; flex-direction: column; gap: 10px; position: relative; overflow: hidden; }
+        h2 { font-size: 0.8rem; margin: 0; color: var(--red); text-transform: uppercase; letter-spacing: 2px; font-weight: 900; z-index: 2; position: relative; }
+        .left-pane { grid-area: left; display: flex; flex-direction: column; gap: 15px; overflow: hidden; position: relative; }
+        .center-pane { grid-area: center; display: flex; flex-direction: column; gap: 15px; min-width: 0; overflow: hidden; }
+        .right-pane { grid-area: right; display: flex; flex-direction: column; gap: 15px; overflow: hidden; position: relative; }
+        .checkbox-group { display: grid; gap: 5px; z-index: 2; position: relative; }
+        .checkbox-item { display: flex; align-items: center; gap: 10px; font-size: 0.8rem; color: var(--mauve); }
+        .checkbox-item input { accent-color: var(--red); width: 14px; height: 14px; }
+        .param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; z-index: 2; position: relative; }
+        .param-grid label { font-size: 0.55rem; color: var(--grey); text-transform: uppercase; }
+        input { background: #000; border: 1px solid var(--mauve); color: white; padding: 4px 8px; font-size: 0.8rem; width: 100%; box-sizing: border-box; outline: none; }
         input:focus { border-color: var(--pink); }
-
-        .btn {
-            padding: 12px 24px;
-            border: 1px solid var(--pink);
-            background: transparent;
-            color: var(--pink);
-            font-weight: 900;
-            text-transform: uppercase;
-            cursor: pointer;
-            font-size: 0.7rem;
-            letter-spacing: 1px;
-            transition: all 0.2s;
-        }
-
+        .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex-shrink: 0; z-index: 2; position: relative; }
+        .stat-box { display: flex; flex-direction: column; justify-content: center; align-items: center; border: 1px solid var(--pink); background: #14100f; height: 50px; }
+        .stat-val { font-size: 1.2rem; font-weight: 900; color: var(--red); }
+        .mirror-logs-area { flex: 1; min-height: 0; background: transparent; border: none; }
+        .harvest-list { flex: 1; overflow-y: auto; font-size: 0.75rem; color: var(--mauve); line-height: 1.3; z-index: 2; position: relative; }
+        .graph-area { flex: 1.5; border: 1px solid var(--pink); background: #000; position: relative; cursor: crosshair; overflow: hidden; padding: 0; }
+        #graph-canvas { width: 100%; height: 100%; position: relative; z-index: 2; }
+        #node-readout { position: absolute; top: 35px; left: 15px; color: var(--red); font-family: monospace; font-size: 0.7rem; letter-spacing: 2px; pointer-events: none; text-shadow: 0 0 10px rgba(218,0,0,0.5); z-index: 10; }
+        .console-area { flex: 1; border: 1px solid var(--pink); display: flex; flex-direction: column; background: #000; position: relative; overflow: hidden; padding: 0; min-height: 0; }
+        .console-header { background: #111; padding: 5px 15px; font-size: 0.65rem; color: var(--red); border-bottom: 1px solid var(--pink); display: flex; justify-content: space-between; z-index: 5; position: relative; font-weight: 900; text-transform: uppercase; }
+        .console { flex: 1; padding: 15px; font-family: monospace; overflow-y: scroll; color: var(--pink); font-size: 0.85rem; line-height: 1.4; z-index: 2; position: relative; }
+        .right-pane { grid-area: right; display: flex; flex-direction: column; gap: 15px; overflow: hidden; position: relative; }
+        .mascot-area { height: 220px; display: flex; align-items: center; justify-content: center; position: relative; background: transparent; border: none; }
+        .mascot-area img.main-mascot { max-height: 100%; filter: drop-shadow(0 0 15px rgba(221, 74, 98, 0.2)); z-index: 2; position: relative; }
+        .tarot-area { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; min-height: 0; z-index: 2; background: transparent; border: none; }
+        #tarot-container { display: flex; justify-content: center; align-items: center; flex: 1; width: 100%; overflow: hidden; }
+        .tarot-card { height: 380px; border: 1px solid var(--pink); box-shadow: 0 0 30px rgba(221, 74, 98, 0.2); transition: all 0.3s ease; }
+        .actions-area { grid-area: actions; display: flex; gap: 15px; border-top: 1px solid var(--pink); padding-top: 10px; position: relative; z-index: 10; }
+        .btn-wrap { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+        .btn { padding: 10px; border: 1px solid var(--pink); background: transparent; color: var(--pink); font-weight: 900; text-transform: uppercase; cursor: pointer; font-size: 0.75rem; letter-spacing: 1px; transition: all 0.2s; position: relative; z-index: 2;}
         .btn:hover { background: var(--pink); color: #000; }
         .btn-harvest { color: var(--red); border-color: var(--red); }
         .btn-harvest:hover { background: var(--red); color: white; }
-
-        .actions-row { display: flex; gap: 15px; }
-
-        .stats-footer {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 25px;
-        }
-
-        .stat-card {
-            border: 1px solid var(--pink);
-            padding: 15px 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .stat-label { color: var(--grey); font-size: 0.65rem; text-transform: uppercase; font-weight: 900; letter-spacing: 1px; }
-        .stat-value { font-weight: 900; color: var(--red); font-size: 1.2rem; }
-
-        .log-entry { margin-bottom: 6px; border-left: 2px solid #222; padding-left: 15px; }
-        .log-sync { border-color: var(--red); color: var(--red); }
-        .log-success { border-color: var(--pink); color: var(--pink); }
-        .log-error { border-color: #ff0000; color: #ff0000; }
+        .help-text { font-size: 0.55rem; color: var(--grey); text-align: center; }
+        .decoration { position: absolute; opacity: 0.3; pointer-events: none; z-index: 1; filter: saturate(1.5) hue-rotate(-10deg); }
+        .dec-1 { bottom: -5%; left: -5%; height: 80%; transform: rotate(10deg); opacity: 0.25; }
+        .dec-2 { top: -5%; right: -5%; height: 80%; transform: rotate(180deg) scaleX(-1); opacity: 0.25; }
+        .dec-3 { top: -10%; left: -20%; height: 60%; transform: rotate(45deg); opacity: 0.2; }
+        .dec-4 { bottom: -20%; right: -10%; height: 90%; transform: rotate(230deg) scaleX(-1); opacity: 0.2; }
+        .dec-5 { top: 10%; right: -5%; height: 120%; transform: rotate(100deg); opacity: 0.2; }
     </style>
 </head>
 <body>
+<img src="/Cherry.png" class="decoration dec-3" style="position:fixed; z-index:0;">
+<img src="/Cherry.png" class="decoration dec-4" style="position:fixed; z-index:0;">
 
 <header>
     <div>
         <h1>Quimera Reaper</h1>
-        <div class="status-tag">SYSTEM_REAPER_PRO_v2.5</div>
+        <span class="status-tag">SYSTEM_REAPER_PRO_v2.5 // FIXED_PANE</span>
     </div>
     <div id="reap-status" style="color: var(--red); font-weight: 900; font-size: 0.8rem;">[ AGENT_STANDBY ]</div>
 </header>
 
-<div class="main-grid">
-    <div class="console-container">
-        <div class="console-header">
-            <span>Kernel Logs</span>
-            <span style="color: var(--pink)">// Secure Connection</span>
-        </div>
-        <div class="console" id="console">
-            <div>// Initialization sequence complete.</div>
-            <div>// Ready for harvest instructions.</div>
-        </div>
-    </div>
-    <div class="sidebar">
-        <h2>Mirror Logs</h2>
-        <div class="harvest-list" id="harvest-list"></div>
-    </div>
-</div>
-
-<div class="controls-row">
+<div class="left-pane">
     <div class="card">
         <h2>Harvest Targets</h2>
         <div class="checkbox-group">
             <label class="checkbox-item"><input type="checkbox" id="sync-likes" checked> Likes</label>
             <label class="checkbox-item"><input type="checkbox" id="sync-albums" checked> Albums</label>
             <label class="checkbox-item"><input type="checkbox" id="sync-playlists"> Playlists</label>
-            <label class="checkbox-item"><input type="checkbox" id="include-videos"> Videos</label>
         </div>
     </div>
     <div class="card">
-        <h2>Recording Params</h2>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div>
-                <label style="font-size: 0.6rem; color: var(--grey);">Bitrate</label>
-                <input type="number" id="set-bitrate" value="192">
-            </div>
-            <div>
-                <label style="font-size: 0.6rem; color: var(--grey);">Limit</label>
-                <input type="number" id="set-max-songs" value="20">
-            </div>
+        <h2>Parameters</h2>
+        <div class="param-grid">
+            <div><label>Bitrate</label><input type="number" id="set-bitrate" value="192"></div>
+            <div><label>Limit</label><input type="number" id="set-max-songs" value="20"></div>
         </div>
-        <button class="btn" style="padding: 6px; font-size: 0.6rem;" onclick="saveSettings()">Apply Settings</button>
+        <button class="btn" style="padding: 4px; font-size: 0.6rem; z-index: 2;" onclick="saveSettings()">Apply</button>
     </div>
-    <div class="card gimmick-slot">
-        [ SLOT_RESERVED_FOR_FUTURE_GIMMICK ]
+    <div class="tarot-area card" style="background: transparent; border: none;">
+        <img src="/Cherry.png" class="decoration dec-2" style="opacity: 0.3;">
+        <h2 style="font-size: 0.6rem; letter-spacing: 4px; margin-bottom: 10px; opacity: 0.6; z-index: 2; position: relative;">[ DAILY ARCANA ]</h2>
+        <div id="tarot-container"></div>
     </div>
 </div>
 
-<div class="actions-row">
-    <button class="btn btn-harvest" style="flex: 1.5" onclick="startHarvest()">Mirror Library</button>
-    <button class="btn" id="reap-btn" style="flex: 1" onclick="startRecording()">Record Queue</button>
-    <button class="btn" onclick="exportZip()">Export ZIP</button>
-    <button class="btn" onclick="loginAssistant()">Login</button>
-    <button class="btn" style="border-color: var(--red); color: var(--red);" onclick="resetHistory()">Reset</button>
+<div class="center-pane">
+    <div class="graph-area card">
+        <div class="console-header" style="border: none; position: absolute; width: 100%; z-index: 5; background: transparent; display: flex; justify-content: space-between; padding: 10px 20px;">
+            <span>NEURAL_HARVEST_CONNECTIVITY</span>
+            <button onclick="updateGraph()" style="background: transparent; border: 1px solid var(--pink); color: var(--pink); font-size: 0.5rem; cursor: pointer; padding: 2px 8px; font-weight: bold; z-index: 10;">RE_PROBE</button>
+        </div>
+        <div id="node-readout">DATA_PROBE: IDLE</div>
+        <svg id="graph-canvas"></svg>
+    </div>
+    <div class="console-area card">
+        <img src="/Cherry.png" class="decoration dec-5">
+        <div class="console-header"><span>Kernel Logs</span><span style="color: var(--pink)">// Secure</span></div>
+        <div class="console" id="console"></div>
+    </div>
 </div>
 
-<footer class="stats-footer">
-    <div class="stat-card">
-        <span class="stat-label">Harvested Songs</span>
-        <span class="stat-value" id="stat-songs">0</span>
+<div class="right-pane">
+    <div class="mascot-area card">
+        <img src="/Cherry.png" class="decoration dec-1">
+        <img src="/Quimera.png" class="main-mascot" alt="Chimera">
     </div>
-    <div class="stat-card">
-        <span class="stat-label">Pending Records</span>
-        <span class="stat-value" id="stat-queue" style="color: var(--pink)">0</span>
+    <div class="stat-row">
+        <div class="stat-box card">
+            <span style="font-size: 0.5rem; color: var(--grey); font-weight: 900; z-index: 2;">HARVESTED</span>
+            <span class="stat-val" id="stat-songs" style="z-index: 2;">0</span>
+        </div>
+        <div class="stat-box card" style="border-color: var(--mauve);">
+            <span style="font-size: 0.5rem; color: var(--grey); font-weight: 900; z-index: 2;">PENDING</span>
+            <span class="stat-val" id="stat-queue" style="color: var(--mauve); z-index: 2;">0</span>
+        </div>
     </div>
-</footer>
+    <div class="mirror-logs-area card">
+        <h2 style="z-index: 2;">Mirror Logs</h2>
+        <div class="harvest-list" id="harvest-list"></div>
+    </div>
+</div>
+
+<div class="actions-area">
+    <div class="btn-wrap">
+        <button class="btn btn-harvest" onclick="startHarvest()">Mirror Library</button>
+        <span class="help-text">Sync structure</span>
+    </div>
+    <div class="btn-wrap">
+        <button class="btn" id="reap-btn" onclick="startRecording()">Record Queue</button>
+        <span class="help-text">Harvest audio</span>
+    </div>
+    <div class="btn-wrap">
+        <button class="btn" onclick="exportZip()">Export ZIP</button>
+        <span class="help-text">Download music</span>
+    </div>
+    <div class="btn-wrap">
+        <button class="btn" style="border-color: var(--red); color: var(--red);" onclick="resetHistory()">Reset Memory</button>
+        <span class="help-text">Wipe records</span>
+    </div>
+</div>
 
 <script>
     const socket = io();
@@ -297,17 +162,8 @@
     const harvestList = document.getElementById('harvest-list');
 
     async function saveSettings() {
-        const settings = {
-            audioBitrate: parseInt(document.getElementById('set-bitrate').value),
-            maxSongsPerSession: parseInt(document.getElementById('set-max-songs').value),
-            minDelaySeconds: 30,
-            maxDelaySeconds: 120
-        };
-        await fetch('/api/settings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(settings)
-        });
+        const s = { audioBitrate: parseInt(document.getElementById('set-bitrate').value), maxSongsPerSession: parseInt(document.getElementById('set-max-songs').value) };
+        await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) });
     }
 
     async function loadSettings() {
@@ -318,26 +174,80 @@
     }
 
     function startHarvest() {
-        const targets = {
-            likes: document.getElementById('sync-likes').checked,
-            albums: document.getElementById('sync-albums').checked,
-            playlists: document.getElementById('sync-playlists').checked,
-            videos: document.getElementById('include-videos').checked
-        };
-        fetch('/api/harvest', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ targets })
-        });
+        const targets = { likes: document.getElementById('sync-likes').checked, albums: document.getElementById('sync-albums').checked, playlists: document.getElementById('sync-playlists').checked };
+        fetch('/api/harvest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targets }) });
     }
 
     async function startRecording() { fetch('/api/reap', { method: 'POST' }); }
     function exportZip() { window.location.href = '/api/export'; }
-    async function loginAssistant() { await fetch('/api/login-assistant', { method: 'POST' }); }
-    async function resetHistory() {
-        if (confirm("Execute system wipe? All harvest records will be purged.")) {
-            await fetch('/api/reset', { method: 'POST' });
-        }
+    async function resetHistory() { if (confirm("Execute system wipe?")) fetch('/api/reset', { method: 'POST' }); }
+
+    let simulation;
+    async function updateGraph() {
+        const res = await fetch('/api/graph');
+        const data = await res.json();
+        const svg = d3.select("#graph-canvas");
+        const width = svg.node().getBoundingClientRect().width;
+        const height = svg.node().getBoundingClientRect().height;
+        svg.selectAll("*").remove();
+        
+        const g = svg.append("g").attr("class", "everything");
+        const zoom = d3.zoom().scaleExtent([0.1, 5]).on("zoom", (event) => g.attr("transform", event.transform));
+        svg.call(zoom);
+
+        const artistStats = {};
+        data.nodes.filter(n => n.group === 2).forEach(song => {
+            const link = data.links.find(l => l.target === song.id || l.target.id === song.id);
+            const artistId = link ? (typeof link.source === 'object' ? link.source.id : link.source) : null;
+            if (artistId) {
+                if (!artistStats[artistId]) artistStats[artistId] = { total: 0, reaped: 0 };
+                artistStats[artistId].total++;
+                if (song.status === 'reaped') artistStats[artistId].reaped++;
+            }
+        });
+
+        simulation = d3.forceSimulation(data.nodes)
+            .force("link", d3.forceLink(data.links).id(d => d.id).distance(40))
+            .force("charge", d3.forceManyBody().strength(-60))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collision", d3.forceCollide().radius(12));
+
+        const link = g.append("g").attr("stroke", "#222").selectAll("line").data(data.links).join("line").attr("stroke-width", 1);
+
+        const node = g.append("g")
+            .selectAll("circle").data(data.nodes).join("circle")
+            .attr("r", d => d.group === 0 ? 12 : (d.group === 1 ? 8 : 5))
+            .attr("fill", d => {
+                if (d.group === 0) return "#DA0000";
+                if (d.group === 1) {
+                    const stats = artistStats[d.id];
+                    if (!stats || stats.reaped === 0) return "#333";
+                    return d3.interpolateRgb("#333", "#DA0000")(stats.reaped / stats.total);
+                }
+                return d.status === "reaped" ? "#FF1493" : "#222"; 
+            })
+            .attr("stroke", d => d.status === "reaped" ? "#FF69B4" : "none")
+            .attr("stroke-width", 2)
+            .attr("filter", d => d.status === "reaped" ? "drop-shadow(0 0 10px rgba(255,20,147,0.8))" : "none")
+            .call(d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended));
+
+        const readout = document.getElementById('node-readout');
+        node.on("mouseover", (event, d) => {
+            readout.innerText = `PROBE_TARGET: ${d.label.toUpperCase()}`;
+            d3.select(event.currentTarget).attr("stroke", "#fff").attr("r", d.group === 0 ? 15 : (d.group === 1 ? 11 : 8));
+        }).on("mouseout", (event, d) => {
+            readout.innerText = `DATA_PROBE: IDLE`;
+            d3.select(event.currentTarget).attr("stroke", d.status === "reaped" ? "#FF69B4" : "none").attr("r", d.group === 0 ? 12 : (d.group === 1 ? 8 : 5));
+        });
+
+        simulation.on("tick", () => {
+            link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+            node.attr("cx", d => d.x).attr("cy", d => d.y);
+        });
+
+        function dragstarted(event) { if (!event.active) simulation.alphaTarget(0.3).restart(); event.subject.fx = event.subject.x; event.subject.fy = event.subject.y; }
+        function dragged(event) { event.subject.fx = event.x; event.subject.fy = event.y; }
+        function dragended(event) { if (!event.active) simulation.alphaTarget(0); event.subject.fx = null; event.subject.fy = null; }
     }
 
     socket.on('log', (data) => {
@@ -346,12 +256,11 @@
         div.innerText = `[${new Date(data.timestamp).toLocaleTimeString()}] ${data.message}`;
         consoleEl.appendChild(div);
         consoleEl.scrollTop = consoleEl.scrollHeight;
-
         if (data.type === 'sync' || data.type === 'success') {
-            const historyItem = document.createElement('div');
-            historyItem.style.marginBottom = '6px';
-            historyItem.innerText = `> ${data.message}`;
-            harvestList.prepend(historyItem);
+            const item = document.createElement('div');
+            item.style.marginBottom = '5px';
+            item.innerText = `> ${data.message}`;
+            harvestList.prepend(item);
         }
     });
 
@@ -361,26 +270,27 @@
         const reapBtn = document.getElementById('reap-btn');
         const statusTag = document.getElementById('reap-status');
         if (data.isReaping) {
-            reapBtn.innerText = "RECORDING...";
-            reapBtn.disabled = true;
-            reapBtn.style.opacity = "0.5";
-            statusTag.innerText = "[ AGENT_ACTIVE ]";
-            statusTag.style.color = "var(--pink)";
+            reapBtn.innerText = "RECORDING..."; reapBtn.disabled = true;
+            statusTag.innerText = "[ AGENT_ACTIVE ]"; statusTag.style.color = "var(--pink)";
         } else {
-            reapBtn.innerText = "RECORD QUEUE";
-            reapBtn.disabled = false;
-            reapBtn.style.opacity = "1";
-            statusTag.innerText = "[ AGENT_STANDBY ]";
-            statusTag.style.color = "var(--red)";
+            reapBtn.innerText = "RECORD QUEUE"; reapBtn.disabled = false;
+            statusTag.innerText = "[ AGENT_STANDBY ]"; statusTag.style.color = "var(--red)";
         }
     });
 
-    loadSettings();
+    function loadTarot() {
+        const cards = ['death.png', 'strength.png', 'temperance.png', 'the chariot.png', 'the fool.png', 'The hanged man.png', 'the lover.png', 'the magician.png'];
+        const now = new Date();
+        const seed = now.getFullYear() + now.getMonth() + now.getDate() + now.getHours();
+        const container = document.getElementById('tarot-container');
+        container.innerHTML = `<img src="/tarot/${cards[seed % cards.length]}" class="tarot-card">`;
+    }
+
+    loadSettings(); loadTarot(); updateGraph();
     fetch('/api/status').then(r => r.json()).then(data => {
         document.getElementById('stat-songs').innerText = data.totalSongs || 0;
         document.getElementById('stat-queue').innerText = data.queueLength || 0;
     });
 </script>
-
 </body>
 </html>

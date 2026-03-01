@@ -60,7 +60,12 @@ class Scraper {
       const header = document.querySelector("ytmusic-responsive-header-renderer, ytmusic-detail-header-renderer");
       const headerTitle = header?.querySelector(".title")?.innerText?.trim();
       
-      // Better artist from header: check strapline-text first
+      // Extract Year from header subtitle (e.g., "Album • 2008")
+      const subtitleText = header?.querySelector(".subtitle")?.innerText || "";
+      const yearMatch = subtitleText.match(/\b(19|20)\d{2}\b/);
+      const year = yearMatch ? yearMatch[0] : "";
+
+      // Better artist from header
       let headerArtist = "";
       const subtitleLinks = header?.querySelectorAll(".subtitle a, .strapline-text a");
       if (subtitleLinks && subtitleLinks.length > 0) {
@@ -80,7 +85,7 @@ class Scraper {
 
       const items = Array.from(document.querySelectorAll("ytmusic-responsive-list-item-renderer"));
       
-      return items.map(item => {
+      return items.map((item, index) => {
         const titleEl = item.querySelector(".title-column .title");
         const flexColumns = Array.from(item.querySelectorAll(".secondary-flex-columns yt-formatted-string"));
         const imgEl = item.querySelector("img");
@@ -94,10 +99,7 @@ class Scraper {
         const junkPattern = /\d+(\.\d+)?\s*(M|k|K)?\s*(reproducciones|views|vistas|visualizaciones|vists)/i;
 
         if (isAlbumPage) {
-            // FORCE: Use the global album title from the header
             album = headerTitle || "Unknown Album";
-            
-            // For artist, find the first non-junk part
             const cleanParts = columnTexts.map(t => t.split("•")[0].trim()).filter(t => !junkPattern.test(t));
             artist = allLinks[0]?.innerText || cleanParts[0] || headerArtist || "Unknown Artist";
         } else {
@@ -126,9 +128,12 @@ class Scraper {
         const finalize = (s) => s.replace(/[\r\n\t]/g, " ").replace(/\s+/g, " ").trim();
 
         return {
+          trackNumber: index + 1,
+          year: year,
           title: finalize(titleEl?.innerText || "Unknown Title"),
           artist: finalize(artist),
           album: finalize(album),
+          albumArtist: finalize(headerArtist || artist),
           artwork: (imgEl?.src || "").replace("=w120-h120", "=w600-h600"),
           duration: item.querySelector(".fixed-columns yt-formatted-string")?.innerText || "0:00",
           url: item.querySelector(".title-column .title a")?.href
@@ -139,6 +144,36 @@ class Scraper {
     console.log(`Found ${songs.length} songs in playlist.`);
     await page.close();
     return songs;
+  }
+
+  async getLyrics(page) {
+    try {
+        // 1. Try to click the Lyrics tab in the right panel
+        const lyricsTabSelector = 'tp-yt-paper-tab[aria-label="Lyrics"], .tab-header[aria-label="Lyrics"]';
+        const lyricsTab = await page.$(lyricsTabSelector);
+        if (lyricsTab) {
+            await lyricsTab.click();
+            await new Promise(r => setTimeout(r, 2000)); // Wait for content load
+        }
+
+        // 2. Try to extract lyrics (check both timed and static containers)
+        const lyricsData = await page.evaluate(() => {
+            // Check for synced lyrics first (list of lines)
+            const syncedLines = Array.from(document.querySelectorAll(".ytmusic-lyrics-line-renderer"));
+            if (syncedLines.length > 0) {
+                return syncedLines.map(line => line.innerText.trim()).join("\n");
+            }
+
+            // Fallback to static description shelf
+            const staticLyrics = document.querySelector("ytmusic-description-shelf-renderer #description-text") ||
+                                 document.querySelector(".ytmusic-description-shelf-renderer #description-text");
+            return staticLyrics?.innerText?.trim() || "";
+        });
+
+        return lyricsData;
+    } catch (err) {
+        return "";
+    }
   }
 
   async autoScroll(page) {

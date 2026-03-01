@@ -16,6 +16,7 @@ class Recorder {
     logger(`Harvesting: ${song.title}`, "info");
 
     const cookiePath = path.join(__dirname, "../temp_cookies.txt");
+    const page = await browserManager.newPage();
 
     try {
       const settings = settingsManager.get();
@@ -25,6 +26,17 @@ class Recorder {
       logger("Syncing session credentials...", "sync");
       const cookieData = await browserManager.getNetscapeCookies();
       fs.writeFileSync(cookiePath, cookieData);
+
+      // --- NEW: Extract Lyrics via Browser ---
+      logger(`Harvesting lyrics from session...`, "info");
+      await page.goto(song.url, { waitUntil: "networkidle2" });
+      const scraper = require("./scraper");
+      const lyrics = await scraper.getLyrics(page);
+      if (lyrics) {
+          song.lyrics = lyrics;
+          logger(`Lyrics harvested (${lyrics.split('\n').length} lines).`, "success");
+      }
+      // ----------------------------------------
 
       logger(`Initializing YT-DLP Engine...`, "sync");
       ytDlp.setBinaryPath(path.join(__dirname, "../yt-dlp.exe"));
@@ -56,6 +68,7 @@ class Recorder {
       throw error;
     } finally {
         if (fs.existsSync(cookiePath)) fs.unlinkSync(cookiePath);
+        await page.close();
     }
   }
 
