@@ -67,6 +67,24 @@ sudo apt-get install -y libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 
 
 ---
 
+## 🔑 Authenticating on a Headless Server
+
+To use your logged-in YouTube Music account on a Linux server, you must establish a session one time.
+
+### Method 1: Profile Migration (Recommended)
+The easiest way to authenticate is to copy your existing login session from your desktop:
+1. On Windows, locate your Brave profile: `C:\Users\[User]\AppData\Local\BraveSoftware\Brave-Browser\User Data\Default`
+2. Copy the entire `Default` folder to your server: `/home/[user]/.config/BraveSoftware/Brave-Browser/Default`
+3. Ensure the agent is set to `HEADLESS=true` and `BRAVE_PROFILE=Default`.
+
+### Method 2: Manual Login
+If you have a GUI/VNC access to your server:
+1. Set `HEADLESS=false` in your `.env`.
+2. Run `npm start`, log into YouTube Music, then close the browser.
+3. Switch back to `HEADLESS=true`.
+
+---
+
 ## 🚜 The Harvesting Workflow
 
 1. **Mirror Library:** Select your targets (Likes/Albums) and click **Mirror Library**.
