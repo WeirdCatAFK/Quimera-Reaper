@@ -57,11 +57,11 @@ class BrowserManager {
       launcher: puppeteer, 
       executablePath,
       userDataDir: useProfile ? this.userDataDir : undefined,
-      headless: isHeadless ? (isWindows ? "old" : "new") : false, 
+      headless: isHeadless ? "old" : false, 
       defaultViewport: null,
       ignoreDefaultArgs: ["--enable-automation"],
       args: launchArgs,
-      protocolTimeout: 60000
+      protocolTimeout: 120000 // 2 minute timeout for OneDrive/Slow disks
     });
     return this.browser;
   }

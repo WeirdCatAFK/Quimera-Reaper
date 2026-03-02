@@ -49,8 +49,15 @@ class Scraper {
     // Give it a moment to settle dynamic elements
     await new Promise(r => setTimeout(r, 2000));
 
-    // Wait for the song list to appear
-    await page.waitForSelector("ytmusic-responsive-list-item-renderer", { timeout: 30000 });
+    try {
+        await page.waitForSelector("ytmusic-responsive-list-item-renderer", { timeout: 30000 });
+    } catch (e) {
+        const path = require('path');
+        const debugPath = path.join(__dirname, '../logs/error_fetch.png');
+        await page.screenshot({ path: debugPath });
+        console.error(`Fetch failed. Screenshot saved to ${debugPath}`);
+        throw e;
+    }
 
     // Scroll to load more songs (simple version)
     await this.autoScroll(page);
