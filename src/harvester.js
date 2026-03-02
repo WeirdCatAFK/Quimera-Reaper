@@ -2,6 +2,7 @@ const YTDlpWrap = require("yt-dlp-wrap").default;
 const ffmpeg = require("fluent-ffmpeg");
 const path = require("path");
 const fs = require("fs");
+const settingsManager = require("./settings");
 require("dotenv").config();
 
 const ytDlp = new YTDlpWrap();
@@ -10,22 +11,31 @@ if (process.env.FFMPEG_PATH) ffmpeg.setFfmpegPath(process.env.FFMPEG_PATH);
 if (process.env.FFPROBE_PATH) ffmpeg.setFfprobePath(process.env.FFPROBE_PATH);
 
 class Harvester {
-  constructor() {
-    this.binaryPath = path.join(__dirname, "..", process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp");
+  constructor() {}
+
+  get binaryName() {
+    return process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp";
+  }
+
+  get binaryPath() {
+    return path.join(__dirname, "..", this.binaryName);
   }
 
   async ensureBinary(logger = console.log) {
     if (!fs.existsSync(this.binaryPath)) {
-        logger("YT-DLP Engine missing. Downloading core components...", "info");
+        logger(`YT-DLP Engine missing. Downloading ${process.platform} components...`, "info");
         await YTDlpWrap.downloadFromGithub(this.binaryPath);
-        if (process.platform !== "win32") fs.chmodSync(this.binaryPath, "755");
+        if (process.platform !== "win32") {
+            fs.chmodSync(this.binaryPath, "755");
+        }
         logger("Core components ready.", "success");
     }
     ytDlp.setBinaryPath(this.binaryPath);
   }
 
   async harvest(song, outputPath, cookiePath, logger = console.log) {
-    const bitrate = 192; // Default or from settings
+    const settings = settingsManager.get();
+    const bitrate = settings.audioBitrate || 192;
 
     await ytDlp.execPromise([
       song.url, "-x", "--audio-format", "mp3", "--audio-quality", `${bitrate}k`,
