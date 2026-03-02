@@ -25,6 +25,13 @@ The agent uses FFmpeg for audio conversion and integrity verification.
 ### 2. Brave or Chrome Browser
 A Chromium-based browser is required. We highly recommend **Brave** for its native ad-blocking which helps keep the harvest clean.
 
+#### 🐧 Linux (Debian/Ubuntu) Dependencies
+If running on a Linux server, you must install the following libraries for the headless browser to function:
+```bash
+sudo apt-get update
+sudo apt-get install -y libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 libpango-1.0-0 libpangocairo-1.0-0
+```
+
 ---
 
 ## 📦 Installation
