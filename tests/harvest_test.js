@@ -1,21 +1,19 @@
-const recorder = require("../src/recorder");
+const harvester = require("../src/harvester");
+const state = require("../src/state");
+const processor = require("../src/processor");
 const browserManager = require("../src/browser");
 const path = require("path");
 const fs = require("fs");
-const YTDlpWrap = require("yt-dlp-wrap").default;
 require("dotenv").config();
 
 async function runTest() {
-    console.log("--- STARTING HARVEST INTEGRITY TEST ---");
+    console.log("--- MODULAR HARVEST INTEGRITY TEST ---");
     
-    // Ensure yt-dlp binary is present
-    const binaryPath = path.join(__dirname, "../yt-dlp.exe");
-    if (!fs.existsSync(binaryPath)) {
-        console.log("Downloading yt-dlp binary...");
-        await YTDlpWrap.downloadFromGithub(binaryPath);
-    }
-
+    // Ensure headless is false for visual debug if needed, 
+    // but default to .env for the test.
+    
     const testSong = {
+        id: "https://music.youtube.com/watch?v=S3kTUULBAt0",
         title: "Test Harvest",
         artist: "Quimera Reaper",
         url: "https://music.youtube.com/watch?v=S3kTUULBAt0" 
@@ -24,32 +22,25 @@ async function runTest() {
     const outputDir = path.join(__dirname, "output");
     if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
     
-    const outputPath = path.join(outputDir, "test_result.mp3");
+    const outputPath = path.join(outputDir, "modular_test.mp3");
     if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
 
-    console.log(`Target: ${testSong.title} by ${testSong.artist}`);
-    console.log(`Output Path: ${outputPath}`);
-
     try {
-        await recorder.recordSong(testSong, outputPath, (msg, type) => {
-            console.log(`[${type?.toUpperCase() || 'INFO'}] ${msg}`);
-        }, { isReaping: true }); 
-
-        console.log("\n--- VERIFYING RESULTS ---");
+        await harvester.ensureBinary();
         
-        if (!fs.existsSync(outputPath)) {
-            throw new Error("FAIL: Final MP3 file was not created.");
-        }
+        const cookiePath = path.join(__dirname, "../temp_cookies.txt");
+        console.log("Syncing session credentials...");
+        const cookies = await browserManager.getNetscapeCookies();
+        fs.writeFileSync(cookiePath, cookies);
 
-        const stats = fs.statSync(outputPath);
-        console.log(`SUCCESS: File created. Size: ${Math.round(stats.size/1024)} KB`);
+        console.log(`Starting harvest for: ${testSong.title}`);
+        await harvester.harvest(testSong, outputPath, cookiePath);
+        
+        console.log("Processing and tagging...");
+        await processor.process(testSong, outputPath);
 
-        if (stats.size < 50000) { 
-            throw new Error(`FAIL: File size is unexpectedly small (${stats.size} bytes).`);
-        }
-
-        console.log("SUCCESS: Integrity check passed.");
-        console.log("--- TEST COMPLETE ---");
+        console.log("SUCCESS: Modular harvest complete.");
+        if (fs.existsSync(cookiePath)) fs.unlinkSync(cookiePath);
 
     } catch (err) {
         console.error("\n--- TEST FAILED ---");

@@ -7,7 +7,8 @@
     "start": "node src/server.js",
     "dev": "node src/server.js",
     "test": "node tests/harvest_test.js",
-    "test:browser": "node tests/browser_test.js"
+    "test:browser": "node tests/browser_test.js",
+    "wipe": "node tests/total_wipe.js"
     },    "keywords": [
     "youtube-music",
     "musicbee",

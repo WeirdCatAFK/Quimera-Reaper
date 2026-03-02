@@ -93,10 +93,10 @@
         </div>
         <button class="btn" style="padding: 4px; font-size: 0.6rem; z-index: 2;" onclick="saveSettings()">Apply</button>
     </div>
-    <div class="tarot-area card" style="background: transparent; border: none;">
-        <img src="/Cherry.png" class="decoration dec-2" style="opacity: 0.3;">
+    <div class="tarot-area card">
+        <img src="/Cherry.png" class="decoration dec-2">
         <h2 style="font-size: 0.6rem; letter-spacing: 4px; margin-bottom: 10px; opacity: 0.6; z-index: 2; position: relative;">[ DAILY ARCANA ]</h2>
-        <div id="tarot-container"></div>
+        <div id="tarot-container" style="z-index: 2;"></div>
     </div>
 </div>
 
@@ -147,12 +147,16 @@
         <span class="help-text">Harvest audio</span>
     </div>
     <div class="btn-wrap">
+        <button class="btn" onclick="killTasks()" style="border-color: var(--grey); color: var(--grey);">Abort All</button>
+        <span class="help-text">Kill browser</span>
+    </div>
+    <div class="btn-wrap">
         <button class="btn" onclick="exportZip()">Export ZIP</button>
         <span class="help-text">Download music</span>
     </div>
     <div class="btn-wrap">
-        <button class="btn" style="border-color: var(--red); color: var(--red);" onclick="resetHistory()">Reset Memory</button>
-        <span class="help-text">Wipe records</span>
+        <button class="btn" style="border-color: var(--red); color: var(--red);" onclick="factoryReset()">Factory Reset</button>
+        <span class="help-text">Purge all data</span>
     </div>
 </div>
 
@@ -179,8 +183,9 @@
     }
 
     async function startRecording() { fetch('/api/reap', { method: 'POST' }); }
+    async function killTasks() { fetch('/api/kill', { method: 'POST' }); }
     function exportZip() { window.location.href = '/api/export'; }
-    async function resetHistory() { if (confirm("Execute system wipe?")) fetch('/api/reset', { method: 'POST' }); }
+    async function factoryReset() { if (confirm("DANGER: This will delete ALL music and records. Continue?")) fetch('/api/factory-reset', { method: 'POST' }); }
 
     let simulation;
     async function updateGraph() {
