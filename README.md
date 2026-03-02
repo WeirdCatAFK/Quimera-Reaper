@@ -32,15 +32,26 @@ A Chromium-based browser is required. We highly recommend **Brave** for its nati
 1. **Clone & Install:**
    ```bash
    npm install
-   ```
+   2. **Configure Environment:**
+      Copy `.env.example` to `.env` and fill in:
+      - `BROWSER_EXECUTABLE_PATH`: Usually `C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe`
+      - `BRAVE_PROFILE`: Check `brave://version`. If your profile isn't "Default", put the name here (e.g., `Profile 1`).
+      - `HEADLESS`: Set to `true` for background operation (Server) or `false` for visible windows (Desktop).
+      - `FFMPEG_PATH`: The agent will try to find it, but you can set the absolute path to `ffmpeg.exe` if it fails.
 
-2. **Configure Environment:**
-   Copy `.env.example` to `.env` and fill in:
-   - `BROWSER_EXECUTABLE_PATH`: Usually `C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe`
-   - `BRAVE_PROFILE`: Check `brave://version`. If your profile isn't "Default", put the name here (e.g., `Profile 1`).
-   - `FFMPEG_PATH`: The agent will try to find it, but you can set the absolute path to `ffmpeg.exe` if it fails.
+   ---
 
-3. **Establish Session:**
+   ## 🛠️ Server vs Desktop Mode
+
+   ### Desktop Mode (`HEADLESS=false`)
+   Recommended for initial setup and logging in. You can see the browser open, handle CAPTCHAs, and verify that YouTube Music is logged into your account.
+
+   ### Server Mode (`HEADLESS=true`)
+   Recommended for long-term background operation on servers (Debian, Ubuntu, etc.). The agent will launch Brave in a special "silent" engine (`--headless=old`) that requires no physical display or window manager. Ensure all other Brave instances using the same profile are closed to avoid database locks.
+
+   ---
+
+   ## 🚜 The Harvesting Workflow
    Run the agent once:
    ```bash
    npm start

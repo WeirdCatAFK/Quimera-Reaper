@@ -22,8 +22,10 @@ class BrowserManager {
     const useBrave = process.env.USE_CHROMIUM !== "true";
     const profile = process.env.BRAVE_PROFILE || "Default";
     const useProfile = process.env.NO_PROFILE !== "true" && useBrave;
+    const isHeadless = process.env.HEADLESS === "true";
 
     console.log(`Launching ${useBrave ? 'Brave' : 'Chromium'} (Stealth Mode)`);
+    console.log(`State: ${isHeadless ? 'HEADLESS (Background)' : 'WINDOWED (Visible)'}`);
     
     const launchArgs = [
         "--no-sandbox",
@@ -37,8 +39,19 @@ class BrowserManager {
         "--use-fake-device-for-media-stream",
         "--allow-http-screen-capture",
         "--no-user-gesture-required",
-        "--disable-features=AudioServiceOutOfProcess"
+        "--disable-features=AudioServiceOutOfProcess",
+        // Linux/Server background flags
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--disable-software-rasterizer",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--password-store=basic"
     ];
+
+    if (isHeadless) {
+        launchArgs.push("--headless=old"); // The most stable headless engine
+    }
 
     if (useProfile) {
         launchArgs.push(`--profile-directory=${profile}`);
@@ -48,7 +61,7 @@ class BrowserManager {
     const launchOptions = {
       launcher: puppeteer, 
       userDataDir: useProfile ? this.userDataDir : undefined,
-      headless: false, 
+      headless: isHeadless ? "old" : false, 
       defaultViewport: null,
       ignoreDefaultArgs: ["--enable-automation"],
       args: launchArgs,
