@@ -67,3 +67,8 @@ A Chromium-based browser is required. We highly recommend **Brave** for its nati
 - `logs/`: Detailed session logs for debugging.
 - `settings.json`: Persisted dashboard preferences.
 - `sync_history.json`: Database of mirrored/harvested tracks.
+
+---
+
+## 🔐 System Architecture
+Technical details regarding browser integration and session persistence can be found in `TRUESESSION.md` for those who might be interested.
