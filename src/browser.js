@@ -3,6 +3,7 @@ const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 require("dotenv").config();
 const path = require("path");
+const fs = require("fs");
 
 puppeteer.use(StealthPlugin());
 
