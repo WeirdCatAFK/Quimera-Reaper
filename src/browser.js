@@ -43,8 +43,9 @@ class BrowserManager {
         "--enable-features=NetworkService,NetworkServiceInProcess", "--use-fake-ui-for-media-stream",
         "--use-fake-device-for-media-stream", "--allow-http-screen-capture", "--no-user-gesture-required",
         "--disable-features=AudioServiceOutOfProcess", "--disable-gpu", "--disable-dev-shm-usage",
-        "--disable-software-rasterizer", "--no-first-run", "--no-default-browser-check", "--password-store=basic",
-        "--remote-debugging-port=9222", "--disable-session-crashed-bubble", "--disable-breakpad"
+        "--disable-software-rasterizer", "--remote-debugging-port=9222", 
+        "--disable-session-crashed-bubble", "--disable-breakpad",
+        "--disable-sync", "--disable-extensions", "--disable-default-apps"
     ];
 
     if (isHeadless) launchArgs.push(isWindows ? "--headless=old" : "--headless=new");
