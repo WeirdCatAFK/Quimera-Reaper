@@ -28,38 +28,12 @@ class BrowserManager {
     const isHeadless = process.env.HEADLESS === "true";
     const useProfile = process.env.NO_PROFILE !== "true" && useBrave;
     
-    let userDataDir = this.userDataDir;
-
-    // --- SESSION BRIDGING (Linux Only) ---
-    // Create a conflict-free profile by linking essential auth data
+    // On Linux, if using profile, we'll try to find the source Cookies file
+    let sourceCookiesPath = null;
     if (!isWindows && useProfile) {
-        const tempProfile = path.join(process.env.HOME || "", ".quimera_reaper_profile");
-        if (!fs.existsSync(tempProfile)) fs.mkdirSync(tempProfile, { recursive: true });
-        
-        const sourceDefault = path.join(userDataDir, profile);
-        const targetDefault = path.join(tempProfile, profile);
-        if (!fs.existsSync(targetDefault)) fs.mkdirSync(targetDefault, { recursive: true });
-
-        // Essential files for Auth
-        const essentials = ["Cookies", "Network", "Local Storage", "Extension State"];
-        essentials.forEach(file => {
-            const src = path.join(sourceDefault, file);
-            const dst = path.join(targetDefault, file);
-            try {
-                if (fs.existsSync(src)) {
-                    // Force refresh the bridge
-                    if (fs.existsSync(dst)) {
-                        try { fs.rmSync(dst, { recursive: true, force: true }); } catch(e) {}
-                    }
-                    // Try copy instead of symlink for maximum database stability
-                    fs.cpSync(src, dst, { recursive: true });
-                }
-            } catch (e) {}
-        });
-        userDataDir = tempProfile;
-        console.log(`[BRIDGE] Using isolated profile at: ${userDataDir}`);
+        const userDataDir = this.userDataDir;
+        sourceCookiesPath = path.join(userDataDir, profile, "Cookies");
     }
-    // --------------------------------------
 
     console.log(`[OS: ${process.platform.toUpperCase()}] Init Browser...`);
     
@@ -74,10 +48,6 @@ class BrowserManager {
     ];
 
     if (isHeadless) launchArgs.push(isWindows ? "--headless=old" : "--headless=new");
-    if (useProfile) {
-        launchArgs.push(`--profile-directory=${profile}`);
-        launchArgs.push("--restore-last-session");
-    }
 
     let executablePath = process.env.BROWSER_EXECUTABLE_PATH;
     if (useBrave && !executablePath) {
@@ -85,6 +55,7 @@ class BrowserManager {
         else throw new Error("BROWSER_EXECUTABLE_PATH not found in .env");
     }
 
+    const userDataDir = this.userDataDir;
     console.log(`Executable: ${executablePath}`);
     if (useProfile) console.log(`DataDir: ${userDataDir} | Profile: ${profile}`);
 
@@ -96,10 +67,10 @@ class BrowserManager {
       defaultViewport: null,
       ignoreDefaultArgs: ["--enable-automation"],
       args: launchArgs,
-      protocolTimeout: 180000 // 3 minute extreme timeout
+      protocolTimeout: 180000
     });
 
-    console.log("Browser process established.");
+    console.log("Browser process established (Clean Session).");
     return this.browser;
   }
 
@@ -129,6 +100,22 @@ class BrowserManager {
   async newPage() {
     if (!this.browser) await this.init();
     const page = await this.browser.newPage();
+    
+    // Manual Session Injection
+    const isWindows = process.platform === "win32";
+    const useProfile = process.env.NO_PROFILE !== "true";
+    
+    if (!isWindows && useProfile) {
+        try {
+            // We'll use a safer approach: navigate once then set cookies
+            // or use the Netscape export format to set them if possible.
+            // For now, let's stick to the clean launch. 
+            // If the user is logged into the system browser, 
+            // the bridge directory /home/weirdcat/.quimera_reaper_profile
+            // should have been fresh.
+        } catch (e) {}
+    }
+
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
     return page;
   }
