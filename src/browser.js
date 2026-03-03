@@ -26,7 +26,39 @@ class BrowserManager {
     const profile = process.env.BRAVE_PROFILE || "Default";
     const isHeadless = process.env.HEADLESS === "true";
     const useProfile = process.env.NO_PROFILE !== "true" && useBrave;
-    const userDataDir = this.userDataDir;
+    
+    let userDataDir = this.userDataDir;
+
+    // --- SESSION BRIDGING (Linux Only) ---
+    // Create a conflict-free profile by linking essential auth data
+    if (!isWindows && useProfile) {
+        const tempProfile = path.join(process.env.HOME || "", ".quimera_reaper_profile");
+        if (!fs.existsSync(tempProfile)) fs.mkdirSync(tempProfile, { recursive: true });
+        
+        const sourceDefault = path.join(userDataDir, profile);
+        const targetDefault = path.join(tempProfile, profile);
+        if (!fs.existsSync(targetDefault)) fs.mkdirSync(targetDefault, { recursive: true });
+
+        // Essential files for Auth
+        const essentials = ["Cookies", "Network", "Local Storage", "Extension State"];
+        essentials.forEach(file => {
+            const src = path.join(sourceDefault, file);
+            const dst = path.join(targetDefault, file);
+            try {
+                if (fs.existsSync(src)) {
+                    if (fs.existsSync(dst)) fs.rmSync(dst, { recursive: true, force: true });
+                    // On Linux, a symlink is the best way to bypass locks while keeping live cookies
+                    fs.symlinkSync(src, dst);
+                }
+            } catch (e) {
+                // Fallback to copy if symlink fails
+                try { fs.cpSync(src, dst, { recursive: true }); } catch(err) {}
+            }
+        });
+        userDataDir = tempProfile;
+        console.log(`[BRIDGE] Using isolated profile at: ${userDataDir}`);
+    }
+    // --------------------------------------
 
     console.log(`[OS: ${process.platform.toUpperCase()}] Init Browser...`);
     
