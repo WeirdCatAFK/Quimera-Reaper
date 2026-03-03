@@ -31,14 +31,15 @@ async function runTest() {
         console.log("Executing yt-dlp harvest...");
         await harvester.harvest(testSong, outputPath, cookiePath);
 
-        console.log("Running post-processor...");
-        await processor.process(testSong, outputPath);
+        console.log("Processing and tagging...");
+        const finalProcessedPath = await processor.process(testSong, outputPath);
 
-        if (fs.existsSync(outputPath)) {
-            const stats = fs.statSync(outputPath);
+        if (fs.existsSync(finalProcessedPath)) {
+            const stats = fs.statSync(finalProcessedPath);
             console.log(`SUCCESS: Harvested file size: ${Math.round(stats.size/1024)} KB`);
+            console.log(`Saved to: ${finalProcessedPath}`);
         } else {
-            throw new Error("Final MP3 not found.");
+            throw new Error("Final processed MP3 not found.");
         }
 
         if (fs.existsSync(cookiePath)) fs.unlinkSync(cookiePath);
