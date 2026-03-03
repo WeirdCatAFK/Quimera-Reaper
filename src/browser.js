@@ -47,14 +47,14 @@ class BrowserManager {
             const dst = path.join(targetDefault, file);
             try {
                 if (fs.existsSync(src)) {
-                    if (fs.existsSync(dst)) fs.rmSync(dst, { recursive: true, force: true });
-                    // On Linux, a symlink is the best way to bypass locks while keeping live cookies
-                    fs.symlinkSync(src, dst);
+                    // Force refresh the bridge
+                    if (fs.existsSync(dst)) {
+                        try { fs.rmSync(dst, { recursive: true, force: true }); } catch(e) {}
+                    }
+                    // Try copy instead of symlink for maximum database stability
+                    fs.cpSync(src, dst, { recursive: true });
                 }
-            } catch (e) {
-                // Fallback to copy if symlink fails
-                try { fs.cpSync(src, dst, { recursive: true }); } catch(err) {}
-            }
+            } catch (e) {}
         });
         userDataDir = tempProfile;
         console.log(`[BRIDGE] Using isolated profile at: ${userDataDir}`);
