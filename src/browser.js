@@ -28,11 +28,43 @@ class BrowserManager {
     const isHeadless = process.env.HEADLESS === "true";
     const useProfile = process.env.NO_PROFILE !== "true" && useBrave;
     
-    // On Linux, if using profile, we'll try to find the source Cookies file
-    let sourceCookiesPath = null;
-    if (!isWindows && useProfile) {
-        const userDataDir = this.userDataDir;
-        sourceCookiesPath = path.join(userDataDir, profile, "Cookies");
+    let activeUserDataDir = this.userDataDir;
+
+    // --- FLAWLESS SESSION BRIDGING ---
+    // We NEVER use the user's real profile directory in Puppeteer.
+    // This prevents profile locks and prevents Puppeteer from erasing cookies.
+    if (useProfile) {
+        const tempProfile = path.join(process.env.HOME || process.env.LOCALAPPDATA || "", ".quimera_reaper_profile");
+        if (!fs.existsSync(tempProfile)) fs.mkdirSync(tempProfile, { recursive: true });
+        
+        // 1. Copy 'Local State' (CRITICAL for Cookie Decryption on Linux/Windows)
+        const srcLocalState = path.join(activeUserDataDir, "Local State");
+        const dstLocalState = path.join(tempProfile, "Local State");
+        if (fs.existsSync(srcLocalState)) {
+            try { fs.cpSync(srcLocalState, dstLocalState); } catch(e) {}
+        }
+
+        // 2. Copy Profile Data
+        const sourceDefault = path.join(activeUserDataDir, profile);
+        const targetDefault = path.join(tempProfile, profile);
+        if (!fs.existsSync(targetDefault)) fs.mkdirSync(targetDefault, { recursive: true });
+
+        const essentials = ["Cookies", "Network", "Local Storage", "Web Data"];
+        essentials.forEach(file => {
+            const src = path.join(sourceDefault, file);
+            const dst = path.join(targetDefault, file);
+            try {
+                if (fs.existsSync(src)) {
+                    if (fs.existsSync(dst)) {
+                        try { fs.rmSync(dst, { recursive: true, force: true }); } catch(e) {}
+                    }
+                    fs.cpSync(src, dst, { recursive: true });
+                }
+            } catch (e) {}
+        });
+        
+        activeUserDataDir = tempProfile;
+        console.log(`[BRIDGE] Isolated Profile Active.`);
     }
 
     console.log(`[OS: ${process.platform.toUpperCase()}] Init Browser...`);
@@ -44,11 +76,13 @@ class BrowserManager {
         "--use-fake-device-for-media-stream", "--allow-http-screen-capture", "--no-user-gesture-required",
         "--disable-features=AudioServiceOutOfProcess", "--disable-gpu", "--disable-dev-shm-usage",
         "--disable-software-rasterizer", "--remote-debugging-port=9222", 
-        "--disable-session-crashed-bubble", "--disable-breakpad",
-        "--disable-sync", "--disable-extensions", "--disable-default-apps"
+        "--disable-session-crashed-bubble", "--disable-breakpad"
     ];
 
     if (isHeadless) launchArgs.push(isWindows ? "--headless=old" : "--headless=new");
+    if (useProfile) {
+        launchArgs.push(`--profile-directory=${profile}`);
+    }
 
     let executablePath = process.env.BROWSER_EXECUTABLE_PATH;
     if (useBrave && !executablePath) {
@@ -56,14 +90,13 @@ class BrowserManager {
         else throw new Error("BROWSER_EXECUTABLE_PATH not found in .env");
     }
 
-    const userDataDir = this.userDataDir;
     console.log(`Executable: ${executablePath}`);
-    if (useProfile) console.log(`DataDir: ${userDataDir} | Profile: ${profile}`);
+    if (useProfile) console.log(`DataDir: ${activeUserDataDir} | Profile: ${profile}`);
 
     this.browser = await launch({
       launcher: puppeteer, 
       executablePath,
-      userDataDir: useProfile ? userDataDir : undefined,
+      userDataDir: useProfile ? activeUserDataDir : undefined,
       headless: isHeadless ? (isWindows ? "old" : "new") : false, 
       defaultViewport: null,
       ignoreDefaultArgs: ["--enable-automation"],
@@ -71,7 +104,7 @@ class BrowserManager {
       protocolTimeout: 180000
     });
 
-    console.log("Browser process established (Clean Session).");
+    console.log("Browser process established.");
     return this.browser;
   }
 
@@ -101,22 +134,6 @@ class BrowserManager {
   async newPage() {
     if (!this.browser) await this.init();
     const page = await this.browser.newPage();
-    
-    // Manual Session Injection
-    const isWindows = process.platform === "win32";
-    const useProfile = process.env.NO_PROFILE !== "true";
-    
-    if (!isWindows && useProfile) {
-        try {
-            // We'll use a safer approach: navigate once then set cookies
-            // or use the Netscape export format to set them if possible.
-            // For now, let's stick to the clean launch. 
-            // If the user is logged into the system browser, 
-            // the bridge directory /home/weirdcat/.quimera_reaper_profile
-            // should have been fresh.
-        } catch (e) {}
-    }
-
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
     return page;
   }
