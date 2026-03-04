@@ -256,7 +256,13 @@
         function dragended(event) { if (!event.active) simulation.alphaTarget(0); event.subject.fx = null; event.subject.fy = null; }
     }
 
-    socket.on('log', (data) => {
+    socket.on('init_logs', (logs) => {
+        logs.forEach(data => appendLog(data));
+    });
+
+    socket.on('log', (data) => appendLog(data));
+
+    function appendLog(data) {
         const div = document.createElement('div');
         div.className = `log-entry log-${data.type}`;
         div.innerText = `[${new Date(data.timestamp).toLocaleTimeString()}] ${data.message}`;
@@ -268,14 +274,16 @@
             item.innerText = `> ${data.message}`;
             harvestList.prepend(item);
         }
-    });
+    }
 
-    socket.on('status', (data) => {
+    socket.on('status', updateUIStatus);
+
+    function updateUIStatus(data) {
         if (data.totalSongs !== undefined) document.getElementById('stat-songs').innerText = data.totalSongs;
         if (data.queueLength !== undefined) document.getElementById('stat-queue').innerText = data.queueLength;
         
         const reapBtn = document.getElementById('reap-btn');
-        const mirrorBtn = document.getElementById('mirror-btn');
+        const mirrorBtn = document.querySelector('.btn-harvest');
         const statusTag = document.getElementById('reap-status');
         
         // Prevent stacking
@@ -293,7 +301,16 @@
             mirrorBtn.innerText = "Mirror Library";
             statusTag.innerText = "[ AGENT_STANDBY ]"; statusTag.style.color = "var(--red)";
         }
-    });
+    }
+
+    function initCheckboxes() {
+        ['sync-likes', 'sync-albums', 'sync-playlists'].forEach(id => {
+            const cb = document.getElementById(id);
+            const saved = localStorage.getItem(id);
+            if (saved !== null) cb.checked = saved === 'true';
+            cb.addEventListener('change', (e) => localStorage.setItem(id, e.target.checked));
+        });
+    }
 
     function loadTarot() {
         const cards = ['death.png', 'strength.png', 'temperance.png', 'the chariot.png', 'the fool.png', 'The hanged man.png', 'the lover.png', 'the magician.png'];
@@ -303,11 +320,8 @@
         container.innerHTML = `<img src="/tarot/${cards[seed % cards.length]}" class="tarot-card">`;
     }
 
-    loadSettings(); loadTarot(); updateGraph();
-    fetch('/api/status').then(r => r.json()).then(data => {
-        document.getElementById('stat-songs').innerText = data.totalSongs || 0;
-        document.getElementById('stat-queue').innerText = data.queueLength || 0;
-    });
+    initCheckboxes(); loadSettings(); loadTarot(); updateGraph();
+    fetch('/api/status').then(r => r.json()).then(data => updateUIStatus(data));
 </script>
 </body>
 </html>

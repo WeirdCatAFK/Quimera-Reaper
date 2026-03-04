@@ -51,11 +51,13 @@ app.post("/api/reset", (req, res) => {
 });
 
 app.get("/api/status", (req, res) => {
+  const history = Object.values(state.history);
+  const reapedCount = history.filter(t => t.status === "reaped").length;
   res.json({
     isSyncing: agent.isSyncing,
     isReaping: agent.isReaping,
     queueLength: state.queue.length,
-    totalSongs: Object.keys(state.history).length
+    totalSongs: reapedCount
   });
 });
 
@@ -85,7 +87,17 @@ app.get("/api/export", (req, res) => {
   archive.finalize();
 });
 
-agent.on("log", (log) => io.emit("log", log));
+const logHistory = [];
+agent.on("log", (log) => {
+  logHistory.push(log);
+  if (logHistory.length > 100) logHistory.shift();
+  io.emit("log", log);
+});
+
+io.on('connection', (socket) => {
+  socket.emit('init_logs', logHistory);
+});
+
 agent.on("status", (status) => io.emit("status", status));
 
 const PORT = process.env.PORT || 3000;
