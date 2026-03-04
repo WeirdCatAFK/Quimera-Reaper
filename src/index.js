@@ -21,9 +21,24 @@ class QuimeraAgent extends EventEmitter {
     // Auto-setup
     harvester.ensureBinary((msg, type) => this.log(msg, type));
 
-    // Schedule: Mirror every 4h, Reap every 1h
-    cron.schedule("0 */4 * * *", () => this.actions.mirrorLibrary({ likes: true, albums: true }));
-    cron.schedule("0 * * * *", () => this.actions.reapQueue());
+    // Schedule: Configurable via .env
+    // Default Mirror: Once a week at 2 AM on Sunday ("0 2 * * 0")
+    const mirrorCron = process.env.CRON_MIRROR || "0 2 * * 0";
+    // Default Reap: Every hour from 8 AM to 10 PM ("0 8-22 * * *")
+    const reapCron = process.env.CRON_REAP || "0 8-22 * * *";
+
+    this.log(`CRON: Mirror scheduled for [${mirrorCron}]`, "info");
+    this.log(`CRON: Reap scheduled for [${reapCron}]`, "info");
+
+    cron.schedule(mirrorCron, () => {
+      this.log("CRON: Initiating scheduled mirror task...", "info");
+      this.actions.mirrorLibrary({ likes: true, albums: true });
+    });
+
+    cron.schedule(reapCron, () => {
+      this.log("CRON: Initiating scheduled reap task...", "info");
+      this.actions.reapQueue();
+    });
 
     // Graceful Shutdown
     process.on("SIGINT", () => this.shutdown());
