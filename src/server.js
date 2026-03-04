@@ -33,9 +33,7 @@ app.post("/api/reap", (req, res) => {
 
 app.post("/api/kill", async (req, res) => {
   agent.stop();
-  const browserManager = require("./browser");
-  await browserManager.close();
-  res.json({ message: "All tasks aborted" });
+  res.json({ message: "All tasks signaled to abort. Waiting for current operation to finish." });
 });
 
 app.post("/api/factory-reset", async (req, res) => {

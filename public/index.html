@@ -273,13 +273,24 @@
     socket.on('status', (data) => {
         if (data.totalSongs !== undefined) document.getElementById('stat-songs').innerText = data.totalSongs;
         if (data.queueLength !== undefined) document.getElementById('stat-queue').innerText = data.queueLength;
+        
         const reapBtn = document.getElementById('reap-btn');
+        const mirrorBtn = document.getElementById('mirror-btn');
         const statusTag = document.getElementById('reap-status');
+        
+        // Prevent stacking
+        mirrorBtn.disabled = data.isSyncing || data.isReaping;
+        reapBtn.disabled = data.isSyncing || data.isReaping;
+
         if (data.isReaping) {
-            reapBtn.innerText = "RECORDING..."; reapBtn.disabled = true;
-            statusTag.innerText = "[ AGENT_ACTIVE ]"; statusTag.style.color = "var(--pink)";
+            reapBtn.innerText = "RECORDING..."; 
+            statusTag.innerText = "[ AGENT_ACTIVE: REAPING ]"; statusTag.style.color = "var(--pink)";
+        } else if (data.isSyncing) {
+            mirrorBtn.innerText = "MIRRORING...";
+            statusTag.innerText = "[ AGENT_ACTIVE: SYNCING ]"; statusTag.style.color = "var(--pink)";
         } else {
-            reapBtn.innerText = "RECORD QUEUE"; reapBtn.disabled = false;
+            reapBtn.innerText = "Record Queue";
+            mirrorBtn.innerText = "Mirror Library";
             statusTag.innerText = "[ AGENT_STANDBY ]"; statusTag.style.color = "var(--red)";
         }
     });
