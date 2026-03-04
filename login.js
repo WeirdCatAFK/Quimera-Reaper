@@ -11,6 +11,12 @@ async function runLogin() {
     // Force windowed mode and ensure profile is used
     process.env.HEADLESS = "false";
     process.env.NO_PROFILE = "false";
+    
+    // CRITICAL for Linux: If running windowed, it MUST have a display.
+    // If not set, default to :0 which is usually the primary monitor.
+    if (process.platform !== "win32" && !process.env.DISPLAY) {
+        process.env.DISPLAY = ":0";
+    }
 
     try {
         const browser = await browserManager.init();
