@@ -1,10 +1,11 @@
 const browserManager = require("./browser");
+const logger = require("./logger");
 
 class Scraper {
   async getLibraryAlbums() {
     const page = await browserManager.newPage();
     const url = "https://music.youtube.com/library/albums";
-    console.log(`Navigating to library albums: ${url}`);
+    logger.info(`Navigating to library albums: ${url}`);
     
     await page.goto(url, { waitUntil: "networkidle2" });
     
@@ -27,7 +28,7 @@ class Scraper {
       )];
     });
 
-    console.log(`Found ${albumUrls.length} albums in library.`);
+    logger.info(`Found ${albumUrls.length} albums in library.`);
     await page.close();
     return albumUrls;
   }
@@ -42,7 +43,7 @@ class Scraper {
         throw new Error("A valid URL is required for this mode.");
     }
     
-    console.log(`Navigating to: ${url}`);
+    logger.info(`Navigating to: ${url}`);
     
     await page.goto(url, { waitUntil: "networkidle2" });
     
@@ -55,7 +56,7 @@ class Scraper {
         const path = require('path');
         const debugPath = path.join(__dirname, '../logs/error_fetch.png');
         await page.screenshot({ path: debugPath });
-        console.error(`Fetch failed. Screenshot saved to ${debugPath}`);
+        logger.error(`Fetch failed. Screenshot saved to ${debugPath}`);
         throw e;
     }
 
@@ -148,7 +149,7 @@ class Scraper {
       });
     });
 
-    console.log(`Found ${songs.length} songs in playlist.`);
+    logger.info(`Found ${songs.length} songs in playlist.`);
     await page.close();
     return songs;
   }

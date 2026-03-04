@@ -3,6 +3,7 @@ const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 require("dotenv").config();
 const path = require("path");
 const fs = require("fs");
+const logger = require("./logger");
 
 puppeteer.use(StealthPlugin());
 
@@ -34,7 +35,7 @@ class BrowserManager {
     
     const activeUserDataDir = this.userDataDir;
 
-    console.log(`[OS: ${process.platform.toUpperCase()}] Init Browser...`);
+    logger.info(`[OS: ${process.platform.toUpperCase()}] Init Browser...`);
     
     const extensionPath = path.join(__dirname, "..", "node_modules", "puppeteer-stream", "extension");
     const launchArgs = [
@@ -59,8 +60,8 @@ class BrowserManager {
         else throw new Error("BROWSER_EXECUTABLE_PATH not found in .env");
     }
 
-    console.log(`Executable: ${executablePath}`);
-    if (useProfile) console.log(`DataDir: ${activeUserDataDir} | Profile: ${profile}`);
+    logger.info(`Executable: ${executablePath}`);
+    if (useProfile) logger.info(`DataDir: ${activeUserDataDir} | Profile: ${profile}`);
 
     this.browser = await puppeteer.launch({
       executablePath,
@@ -75,7 +76,7 @@ class BrowserManager {
 
     // Re-implement puppeteer-stream's internal extension wait with a MUCH longer timeout
     try {
-        console.log("Waiting for streaming extension to stabilize...");
+        logger.info("Waiting for streaming extension to stabilize...");
         const extensionTarget = await this.browser.waitForTarget(
             (target) => target.type() === "background_page" &&
             target.url() === "chrome-extension://jjndjgheafjngoipoacpjgeicjeomjli/_generated_background_page.html",
@@ -88,15 +89,15 @@ class BrowserManager {
                 this.browser.videoCaptureExtension = videoCaptureExtension;
                 // Basic mock for the extension functions if needed
                 await videoCaptureExtension.exposeFunction("sendData", () => {});
-                await videoCaptureExtension.exposeFunction("log", (...args) => console.log("[Ext Log]", ...args));
-                console.log("Streaming extension linked.");
+                await videoCaptureExtension.exposeFunction("log", (...args) => logger.info(`[Ext Log] ${args.join(" ")}`));
+                logger.success("Streaming extension linked.");
             }
         }
     } catch (e) {
-        console.warn("Extension target not found in time, but proceeding with browser...");
+        logger.warn("Extension target not found in time, but proceeding with browser...");
     }
 
-    console.log("Browser process established.");
+    logger.info("Browser process established.");
     return this.browser;
   }
 
@@ -116,7 +117,7 @@ class BrowserManager {
         }
         return netscape;
     } catch (err) {
-        console.error(`Cookie Export Failed: ${err.message}`);
+        logger.error(`Cookie Export Failed: ${err.message}`);
         throw err;
     } finally {
         if (page) await page.close();

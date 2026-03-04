@@ -6,6 +6,7 @@ const harvester = require("./harvester");
 const processor = require("./processor");
 const browserManager = require("./browser");
 const settingsManager = require("./settings");
+const logger = require("./logger");
 
 class ActionsManager {
   constructor(agent) {
@@ -15,7 +16,7 @@ class ActionsManager {
   async mirrorLibrary(targets) {
     if (this.agent.isSyncing) return;
     this.agent.isSyncing = true;
-    this.agent.log("Neural Scan Initiated...");
+    logger.info("Neural Scan Initiated...");
 
     try {
       if (targets.likes) await this._mirrorUrl("https://music.youtube.com/playlist?list=LM");
@@ -27,9 +28,9 @@ class ActionsManager {
           if ((i + 1) % 5 === 0) await new Promise(r => setTimeout(r, 5000));
         }
       }
-      this.agent.log("Mirror Complete.", "success");
+      logger.success("Mirror Complete.");
     } catch (err) {
-      this.agent.log(`Sync Error: ${err.message}`, "error");
+      logger.error(`Sync Error: ${err.message}`);
     } finally {
       this.agent.isSyncing = false;
       this.agent.emitStatus();
@@ -37,7 +38,7 @@ class ActionsManager {
   }
 
   async _mirrorUrl(url) {
-    this.agent.log(`Scanning: ${url.split('/').pop()}...`);
+    logger.info(`Scanning: ${url.split('/').pop()}...`);
     const tracks = await scraper.getPlaylistSongs(url);
     
     for (const track of tracks) {
@@ -46,7 +47,7 @@ class ActionsManager {
 
       if (!state.history[track.url] || !exists) {
         if (!exists) {
-            this.agent.log(`Placing stub: ${track.title}`, "sync");
+            logger.log(`Placing stub: ${track.title}`, "sync");
             processor.createPlaceholder(track);
         }
         state.addToHistory(track.url, { ...track, status: state.history[track.url]?.status || "mirrored" });
@@ -60,7 +61,7 @@ class ActionsManager {
   async reapQueue() {
     if (this.agent.isReaping || state.queue.length === 0) return;
     this.agent.isReaping = true;
-    this.agent.log(`Harvesting started. Queue: ${state.queue.length}`);
+    logger.info(`Harvesting started. Queue: ${state.queue.length}`);
     this.agent.emitStatus();
 
     try {
@@ -71,7 +72,7 @@ class ActionsManager {
         if (!this.agent.isReaping) break;
 
         const track = state.popFromQueue();
-        this.agent.log(`Reaping: ${track.title}...`);
+        logger.info(`Reaping: ${track.title}...`);
         
         const tempPath = path.join(__dirname, "..", `temp_${Date.now()}.mp3`);
         const cookiePath = path.join(__dirname, "..", "temp_cookies.txt");
@@ -84,16 +85,16 @@ class ActionsManager {
           track.lyrics = await scraper.getLyrics(page);
           await page.close();
 
-          await harvester.harvest(track, tempPath, cookiePath, (m, t) => this.agent.log(m, t));
+          await harvester.harvest(track, tempPath, cookiePath, (m, t) => logger.log(m, t));
           await processor.process(track, tempPath);
           
           state.history[track.url].status = "reaped";
           state.save();
           count++;
-          this.agent.log(`Saved: ${track.title}`, "success");
+          logger.success(`Saved: ${track.title}`);
 
         } catch (err) {
-          this.agent.log(`Failed: ${track.title} (${err.message})`, "error");
+          logger.error(`Failed: ${track.title} (${err.message})`);
           state.queue.unshift(track); 
         } finally {
           if (fs.existsSync(cookiePath)) fs.unlinkSync(cookiePath);
@@ -112,7 +113,7 @@ class ActionsManager {
   }
 
   async factoryReset() {
-    this.agent.log("Executing Factory Reset...", "warn");
+    logger.warn("Executing Factory Reset...");
     this.agent.stop();
     await browserManager.close();
     state.reset();
@@ -129,14 +130,14 @@ class ActionsManager {
         fs.mkdirSync(logsDir, { recursive: true });
     }
     
-    this.agent.log("Factory Reset Complete.", "success");
+    logger.success("Factory Reset Complete.");
     this.agent.emitStatus();
   }
 
   abort() {
     this.agent.isReaping = false;
     this.agent.isSyncing = false;
-    this.agent.log("Aborting all active processes.", "warn");
+    logger.warn("Aborting all active processes.");
   }
 }
 

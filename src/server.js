@@ -9,6 +9,7 @@ const archiver = require("archiver");
 const agent = require("./index");
 const state = require("./state");
 const settingsManager = require("./settings");
+const logger = require("./logger");
 
 const app = express();
 const server = http.createServer(app);
@@ -87,20 +88,15 @@ app.get("/api/export", (req, res) => {
   archive.finalize();
 });
 
-const logHistory = [];
-agent.on("log", (log) => {
-  logHistory.push(log);
-  if (logHistory.length > 100) logHistory.shift();
-  io.emit("log", log);
-});
+logger.on("log", (log) => io.emit("log", log));
 
 io.on('connection', (socket) => {
-  socket.emit('init_logs', logHistory);
+  socket.emit('init_logs', logger.history);
 });
 
 agent.on("status", (status) => io.emit("status", status));
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Quimera Reaper Active: http://localhost:${PORT}`);
+  logger.success(`Quimera Reaper Active: http://localhost:${PORT}`);
 });

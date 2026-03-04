@@ -8,18 +8,18 @@ const state = require("./state");
 const browserManager = require("./browser");
 const harvester = require("./harvester");
 const ActionsManager = require("./actions");
+const logger = require("./logger");
 
 class QuimeraAgent extends EventEmitter {
   constructor() {
     super();
     this.isSyncing = false;
     this.isReaping = false;
-    this.currentLogFile = null;
     
     this.actions = new ActionsManager(this);
 
     // Auto-setup
-    harvester.ensureBinary((msg, type) => this.log(msg, type));
+    harvester.ensureBinary((msg, type) => logger.log(msg, type));
 
     // Schedule: Configurable via .env
     // Default Mirror: Once a week at 2 AM on Sunday ("0 2 * * 0")
@@ -27,16 +27,16 @@ class QuimeraAgent extends EventEmitter {
     // Default Reap: Every hour from 8 AM to 10 PM ("0 8-22 * * *")
     const reapCron = process.env.CRON_REAP || "0 8-22 * * *";
 
-    this.log(`CRON: Mirror scheduled for [${mirrorCron}]`, "info");
-    this.log(`CRON: Reap scheduled for [${reapCron}]`, "info");
+    logger.info(`CRON: Mirror scheduled for [${mirrorCron}]`);
+    logger.info(`CRON: Reap scheduled for [${reapCron}]`);
 
     cron.schedule(mirrorCron, () => {
-      this.log("CRON: Initiating scheduled mirror task...", "info");
+      logger.info("CRON: Initiating scheduled mirror task...");
       this.actions.mirrorLibrary({ likes: true, albums: true });
     });
 
     cron.schedule(reapCron, () => {
-      this.log("CRON: Initiating scheduled reap task...", "info");
+      logger.info("CRON: Initiating scheduled reap task...");
       this.actions.reapQueue();
     });
 
@@ -46,24 +46,11 @@ class QuimeraAgent extends EventEmitter {
   }
 
   async shutdown() {
-    this.log("Agent shutdown sequence initiated...", "warn");
+    logger.warn("Agent shutdown sequence initiated...");
     this.actions.abort();
     await browserManager.close();
-    this.log("Shutdown complete. Farewell.", "success");
+    logger.success("Shutdown complete. Farewell.");
     process.exit(0);
-  }
-
-  log(message, type = "info") {
-    const timestamp = new Date().toISOString();
-    const logLine = `[${timestamp}] [${type.toUpperCase()}] ${message}\n`;
-    console.log(`[${type.toUpperCase()}] ${message}`);
-    
-    if (!this.currentLogFile) {
-        this.currentLogFile = path.join(__dirname, "..", "logs", `session_${Date.now()}.log`);
-        if (!fs.existsSync(path.dirname(this.currentLogFile))) fs.mkdirSync(path.dirname(this.currentLogFile), { recursive: true });
-    }
-    fs.appendFileSync(this.currentLogFile, logLine);
-    this.emit("log", { message, type, timestamp });
   }
 
   emitStatus() {
