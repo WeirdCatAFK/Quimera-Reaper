@@ -35,7 +35,7 @@ class BrowserManager {
         "--enable-features=NetworkService,NetworkServiceInProcess", "--use-fake-ui-for-media-stream",
         "--use-fake-device-for-media-stream", "--allow-http-screen-capture", "--no-user-gesture-required",
         "--disable-features=AudioServiceOutOfProcess", "--disable-gpu", "--disable-dev-shm-usage",
-        "--disable-software-rasterizer", "--remote-debugging-port=9222", 
+        "--disable-software-rasterizer", 
         "--disable-session-crashed-bubble", "--disable-breakpad",
         "--password-store=basic" // CRITICAL for Linux: prevents keyring cookie erasure in headless
     ];
