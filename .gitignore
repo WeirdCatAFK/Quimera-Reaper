@@ -1,17 +1,23 @@
 # Dependencies
 node_modules/
+yt-dlp
+yt-dlp.exe
 
 # Environment / Credentials
 .env
 .env.local
+.env.*
 
 # Browser Data (Contains session cookies and large profile data)
 user_data/
+bot_profile/
+.quimera_reaper_profile/
 
 # Output Data (The actual music collection)
 music_library/
 *.mp3
 *.webm
+*.jpg
 
 # Local State (Persistent database files)
 sync_history.json
@@ -19,20 +25,23 @@ reap_queue.json
 subscriptions.json
 settings.json
 
-# Temporary files
+# Temporary / Debug files
 temp_*/
 temp_*.mp3
 temp_*.webm
 temp_cookies.txt
+debug_launch.js
+login_debug.png
+error_fetch.png
+dom_dump.json
+logs/
+*.log
 
+# Test related
 tests/output/
 tests/debug_segments/
-yt-dlp.exe
-dom_dump.json
 
 # System Files
 .DS_Store
 Thumbs.db
 desktop.ini
-logs/
-debug_fetch.png
