@@ -62,7 +62,8 @@ class BrowserManager {
       defaultViewport: null,
       ignoreDefaultArgs: ["--enable-automation"],
       args: launchArgs,
-      protocolTimeout: 180000
+      timeout: 180000, // 3 minutes to wait for initial launch (Crucial for slow disks/new profiles)
+      protocolTimeout: 180000 // 3 minutes for subsequent commands
     });
 
     console.log("Browser process established.");
