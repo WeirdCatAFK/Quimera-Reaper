@@ -14,11 +14,8 @@ class BrowserManager {
 
   get userDataDir() {
     if (process.env.USER_DATA_DIR) return path.resolve(process.env.USER_DATA_DIR);
-    if (process.platform === "win32") {
-        return path.join(process.env.LOCALAPPDATA || "", "BraveSoftware", "Brave-Browser", "User Data");
-    } else {
-        return path.join(process.env.HOME || "", ".config", "BraveSoftware", "Brave-Browser");
-    }
+    // Default to a local, isolated bot profile to avoid keyring lockouts and cookie erasure
+    return path.join(__dirname, "..", "bot_profile");
   }
 
   async init() {
@@ -39,7 +36,8 @@ class BrowserManager {
         "--use-fake-device-for-media-stream", "--allow-http-screen-capture", "--no-user-gesture-required",
         "--disable-features=AudioServiceOutOfProcess", "--disable-gpu", "--disable-dev-shm-usage",
         "--disable-software-rasterizer", "--remote-debugging-port=9222", 
-        "--disable-session-crashed-bubble", "--disable-breakpad"
+        "--disable-session-crashed-bubble", "--disable-breakpad",
+        "--password-store=basic" // CRITICAL for Linux: prevents keyring cookie erasure in headless
     ];
 
     if (isHeadless) launchArgs.push("--headless=old");
