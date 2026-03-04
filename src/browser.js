@@ -79,7 +79,7 @@ class BrowserManager {
         "--disable-session-crashed-bubble", "--disable-breakpad"
     ];
 
-    if (isHeadless) launchArgs.push(isWindows ? "--headless=old" : "--headless=new");
+    if (isHeadless) launchArgs.push("--headless=old");
     if (useProfile) {
         launchArgs.push(`--profile-directory=${profile}`);
     }
@@ -97,7 +97,7 @@ class BrowserManager {
       launcher: puppeteer, 
       executablePath,
       userDataDir: useProfile ? activeUserDataDir : undefined,
-      headless: isHeadless ? (isWindows ? "old" : "new") : false, 
+      headless: isHeadless ? "old" : false, 
       defaultViewport: null,
       ignoreDefaultArgs: ["--enable-automation"],
       args: launchArgs,
