@@ -6,8 +6,7 @@ async function runLogin() {
     console.log("1. A browser window will open shortly.");
     console.log("2. Please log in to YouTube Music.");
     console.log("3. You have 10 minutes. When finished, simply close the browser window.");
-    console.log("--------------------------------------
-");
+    console.log("--------------------------------------\n");
 
     // Force windowed mode and ensure profile is used
     process.env.HEADLESS = "false";
@@ -23,22 +22,19 @@ async function runLogin() {
         // Wait for 10 minutes or until the browser is disconnected (user closes it)
         await new Promise((resolve) => {
             const timeout = setTimeout(() => {
-                console.log("
-10 minutes elapsed. Closing browser...");
+                console.log("\n10 minutes elapsed. Closing browser...");
                 resolve();
             }, 10 * 60 * 1000); // 10 minutes
 
             browser.on('disconnected', () => {
-                console.log("
-Browser closed by user. Login session saved.");
+                console.log("\nBrowser closed by user. Login session saved.");
                 clearTimeout(timeout);
                 resolve();
             });
         });
 
     } catch (err) {
-        console.error("
-Error during login session:", err.message);
+        console.error("\nError during login session:", err.message);
     } finally {
         console.log("Login process finished.");
         process.exit(0);
