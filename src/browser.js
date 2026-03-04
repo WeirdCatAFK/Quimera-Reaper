@@ -1,4 +1,3 @@
-const { launch } = require("puppeteer-stream");
 const puppeteer = require("puppeteer-extra");
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 require("dotenv").config();
@@ -14,7 +13,15 @@ class BrowserManager {
 
   get userDataDir() {
     if (process.env.USER_DATA_DIR) return path.resolve(process.env.USER_DATA_DIR);
-    // Default to a local, isolated bot profile to avoid keyring lockouts and cookie erasure
+    
+    // On Linux, try to use the actual system Brave profile first for higher reputation
+    if (process.platform === "linux") {
+        const homeDir = require("os").homedir();
+        const systemBravePath = path.join(homeDir, ".config/BraveSoftware/Brave-Browser");
+        if (fs.existsSync(systemBravePath)) return systemBravePath;
+    }
+
+    // Fallback to local bot profile
     return path.join(__dirname, "..", "bot_profile");
   }
 
@@ -29,15 +36,16 @@ class BrowserManager {
 
     console.log(`[OS: ${process.platform.toUpperCase()}] Init Browser...`);
     
+    const extensionPath = path.join(__dirname, "..", "node_modules", "puppeteer-stream", "extension");
     const launchArgs = [
-        "--no-sandbox", "--disable-setuid-sandbox", "--autoplay-policy=no-user-gesture-required",
-        "--window-size=1280,800", "--disable-infobars", "--disable-blink-features=AutomationControlled",
-        "--enable-features=NetworkService,NetworkServiceInProcess", "--use-fake-ui-for-media-stream",
-        "--use-fake-device-for-media-stream", "--allow-http-screen-capture", "--no-user-gesture-required",
-        "--disable-features=AudioServiceOutOfProcess", "--disable-gpu", "--disable-dev-shm-usage",
-        "--disable-software-rasterizer", 
-        "--disable-session-crashed-bubble", "--disable-breakpad",
-        "--password-store=basic" // CRITICAL for Linux: prevents keyring cookie erasure in headless
+        "--no-sandbox", 
+        "--disable-setuid-sandbox", 
+        "--disable-blink-features=AutomationControlled",
+        "--window-size=1280,800",
+        `--load-extension=${extensionPath}`,
+        `--disable-extensions-except=${extensionPath}`,
+        "--whitelisted-extension-id=jjndjgheafjngoipoacpjgeicjeomjli",
+        "--password-store=basic"
     ];
 
     if (isHeadless) launchArgs.push("--headless=old");
@@ -54,17 +62,39 @@ class BrowserManager {
     console.log(`Executable: ${executablePath}`);
     if (useProfile) console.log(`DataDir: ${activeUserDataDir} | Profile: ${profile}`);
 
-    this.browser = await launch({
-      launcher: puppeteer, 
+    this.browser = await puppeteer.launch({
       executablePath,
       userDataDir: useProfile ? activeUserDataDir : undefined,
       headless: isHeadless ? "old" : false, 
       defaultViewport: null,
       ignoreDefaultArgs: ["--enable-automation"],
       args: launchArgs,
-      timeout: 180000, // 3 minutes to wait for initial launch (Crucial for slow disks/new profiles)
-      protocolTimeout: 180000 // 3 minutes for subsequent commands
+      timeout: 180000, 
+      protocolTimeout: 180000 
     });
+
+    // Re-implement puppeteer-stream's internal extension wait with a MUCH longer timeout
+    try {
+        console.log("Waiting for streaming extension to stabilize...");
+        const extensionTarget = await this.browser.waitForTarget(
+            (target) => target.type() === "background_page" &&
+            target.url() === "chrome-extension://jjndjgheafjngoipoacpjgeicjeomjli/_generated_background_page.html",
+            { timeout: 180000 } // 3 minutes instead of the default 30s
+        );
+        
+        if (extensionTarget) {
+            const videoCaptureExtension = await extensionTarget.page();
+            if (videoCaptureExtension) {
+                this.browser.videoCaptureExtension = videoCaptureExtension;
+                // Basic mock for the extension functions if needed
+                await videoCaptureExtension.exposeFunction("sendData", () => {});
+                await videoCaptureExtension.exposeFunction("log", (...args) => console.log("[Ext Log]", ...args));
+                console.log("Streaming extension linked.");
+            }
+        }
+    } catch (e) {
+        console.warn("Extension target not found in time, but proceeding with browser...");
+    }
 
     console.log("Browser process established.");
     return this.browser;
@@ -112,7 +142,7 @@ class BrowserManager {
         } catch (e) {}
     }
 
-    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
+    await page.setUserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
     return page;
   }
 

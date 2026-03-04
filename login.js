@@ -13,7 +13,6 @@ async function runLogin() {
     process.env.NO_PROFILE = "false";
     
     // CRITICAL for Linux: If running windowed, it MUST have a display.
-    // If not set, default to :0 which is usually the primary monitor.
     if (process.platform !== "win32" && !process.env.DISPLAY) {
         process.env.DISPLAY = ":0";
     }
@@ -21,14 +20,14 @@ async function runLogin() {
     try {
         const browser = await browserManager.init();
 
-        // Force a brand new page to avoid getting stuck on Brave's default new tab
-        const page = await browser.newPage();
+        // Use the existing page or a new one to avoid detection
+        const pages = await browser.pages();
+        const page = pages.length > 0 ? pages[0] : await browser.newPage();
 
-        // Bring the new page to the front so the user sees it immediately
         await page.bringToFront();
 
         console.log("Navigating to YouTube Music...");
-        await page.goto("https://music.youtube.com", { waitUntil: "domcontentloaded", timeout: 60000 });
+        await page.goto("https://music.youtube.com", { waitUntil: "networkidle2", timeout: 60000 });
         console.log("Waiting for you to log in...");
         // Wait for 10 minutes or until the browser is disconnected (user closes it)
         await new Promise((resolve) => {
