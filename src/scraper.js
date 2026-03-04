@@ -50,7 +50,8 @@ class Scraper {
     await new Promise(r => setTimeout(r, 2000));
 
     try {
-        await page.waitForSelector("ytmusic-responsive-list-item-renderer", { timeout: 30000 });
+        // Increased to 3 minutes (180000ms) to allow plenty of time for manual login
+        await page.waitForSelector("ytmusic-responsive-list-item-renderer", { timeout: 180000 });
     } catch (e) {
         const path = require('path');
         const debugPath = path.join(__dirname, '../logs/error_fetch.png');
