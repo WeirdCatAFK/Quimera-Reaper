@@ -35,7 +35,7 @@ class StateManager {
   }
 
   addToQueue(track) {
-    if (!this.queue.some(q => q.id === track.id)) {
+    if (!this.queue.some(q => q.url === track.url)) {
         this.queue.push(track);
         this.save();
     }
