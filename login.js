@@ -14,11 +14,16 @@ async function runLogin() {
 
     try {
         const browser = await browserManager.init();
-        const page = (await browser.pages())[0] || await browser.newPage();
-        
-        await page.goto("https://music.youtube.com", { waitUntil: "networkidle2" });
-        console.log("Navigated to YouTube Music. Waiting for you to log in...");
 
+        // Force a brand new page to avoid getting stuck on Brave's default new tab
+        const page = await browser.newPage();
+
+        // Bring the new page to the front so the user sees it immediately
+        await page.bringToFront();
+
+        console.log("Navigating to YouTube Music...");
+        await page.goto("https://music.youtube.com", { waitUntil: "domcontentloaded", timeout: 60000 });
+        console.log("Waiting for you to log in...");
         // Wait for 10 minutes or until the browser is disconnected (user closes it)
         await new Promise((resolve) => {
             const timeout = setTimeout(() => {
