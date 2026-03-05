@@ -95,7 +95,13 @@ class ActionsManager {
 
         } catch (err) {
           logger.error(`Failed: ${track.title} (${err.message})`);
-          state.queue.unshift(track); 
+          
+          // Mark as failed in history to avoid infinite loops on dead links
+          state.history[track.url].status = "failed";
+          state.save();
+          
+          // We do not unshift it back to the queue, as it blocks the whole system.
+          // The user can manually clear 'failed' statuses later if they want to retry.
         } finally {
           if (fs.existsSync(cookiePath)) fs.unlinkSync(cookiePath);
           this.agent.emitStatus();
