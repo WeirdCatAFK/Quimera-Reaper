@@ -81,11 +81,51 @@ app.get("/api/graph", (req, res) => {
 
 app.get("/api/export", (req, res) => {
   const musicDir = path.resolve(process.env.MUSIC_OUTPUT_DIR || "./music_library");
-  res.attachment("quimera_harvest.zip");
-  const archive = archiver("zip", { zlib: { level: 9 } });
-  archive.pipe(res);
-  archive.directory(musicDir, false);
-  archive.finalize();
+  const part = parseInt(req.query.part) || 0;
+  const chunkSize = parseInt(req.query.chunkSize) || 40; // 40 files per chunk (around 200MB, safely under Cloudflare timeout)
+
+  const getAllFiles = (dir) => {
+    let results = [];
+    if (!fs.existsSync(dir)) return results;
+    const list = fs.readdirSync(dir);
+    list.forEach(file => {
+        file = path.join(dir, file);
+        const stat = fs.statSync(file);
+        if (stat && stat.isDirectory()) { 
+            results = results.concat(getAllFiles(file));
+        } else { 
+            results.push(file);
+        }
+    });
+    return results;
+  };
+
+  try {
+    const allFiles = getAllFiles(musicDir);
+    const totalParts = Math.ceil(allFiles.length / chunkSize);
+
+    if (req.query.info === 'true') {
+        return res.json({ totalFiles: allFiles.length, totalParts, chunkSize });
+    }
+
+    if (allFiles.length === 0) return res.status(404).send("No files found.");
+    if (part >= totalParts) return res.status(404).send("Part not found.");
+
+    const chunkFiles = allFiles.slice(part * chunkSize, (part + 1) * chunkSize);
+
+    res.attachment(`quimera_harvest_part${part + 1}_of_${totalParts}.zip`);
+    const archive = archiver("zip", { zlib: { level: 9 } });
+    archive.pipe(res);
+    
+    chunkFiles.forEach(file => {
+        archive.file(file, { name: path.relative(musicDir, file) });
+    });
+    
+    archive.finalize();
+  } catch (err) {
+    logger.error(`Export Error: ${err.message}`);
+    res.status(500).send(err.message);
+  }
 });
 
 logger.on("log", (log) => io.emit("log", log));
