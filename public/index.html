@@ -188,28 +188,49 @@
     async function killTasks() { fetch('/api/kill', { method: 'POST' }); }
     async function exportZip() { 
         try {
-            const res = await fetch('/api/export?info=true');
-            const data = await res.json();
-            
-            if (data.totalParts === 0) return alert("No files to export.");
-            
-            let html = `<h3 style="color:var(--red); margin-top:0;">Export Library</h3>
-                        <p style="font-size:0.8rem; color:var(--grey);">Download your library in chunks to bypass Cloudflare limits.</p>
-                        <div style="display:flex; flex-direction:column; gap:5px; max-height: 50vh; overflow-y: auto; padding-right: 5px;">`;
-            
-            for (let i = 0; i < data.totalParts; i++) {
-                html += `<a href="/api/export?part=${i}" class="btn" style="text-align:center; text-decoration:none;" target="_blank">Download Part ${i + 1} of ${data.totalParts}</a>`;
+            const btn = document.querySelector('button[onclick="exportZip()"]');
+            btn.innerText = "PREPARING...";
+            btn.disabled = true;
+
+            const res = await fetch('/api/export', { method: 'POST' });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Failed to start export");
             }
-            html += `</div>`;
-            
-            const modal = document.createElement('div');
-            modal.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:1000; display:flex; justify-content:center; align-items:center;";
-            modal.innerHTML = `<div class="card" style="width:350px; position:relative; box-shadow: 0 0 30px rgba(221, 74, 98, 0.4);">
-                <button onclick="this.closest('div').parentElement.remove()" style="position:absolute; right:15px; top:15px; background:none; border:none; color:var(--pink); font-weight:bold; cursor:pointer; font-size:1.2rem;">X</button>
-                ${html}
-            </div>`;
-            document.body.appendChild(modal);
+
+            const checkStatus = setInterval(async () => {
+                const statusRes = await fetch('/api/export/status');
+                const status = await statusRes.json();
+                
+                if (status.error) {
+                    clearInterval(checkStatus);
+                    btn.innerText = "Export ZIP";
+                    btn.disabled = false;
+                    alert("Export failed: " + status.error);
+                } else if (!status.isBuilding && status.url) {
+                    clearInterval(checkStatus);
+                    btn.innerText = "Export ZIP";
+                    btn.disabled = false;
+                    
+                    const modal = document.createElement('div');
+                    modal.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:1000; display:flex; justify-content:center; align-items:center;";
+                    modal.innerHTML = `<div class="card" style="width:350px; position:relative; box-shadow: 0 0 30px rgba(221, 74, 98, 0.4); text-align:center;">
+                        <button onclick="this.closest('div').parentElement.remove()" style="position:absolute; right:15px; top:15px; background:none; border:none; color:var(--pink); font-weight:bold; cursor:pointer; font-size:1.2rem;">X</button>
+                        <h3 style="color:var(--red); margin-top:0;">Export Ready</h3>
+                        <p style="font-size:0.8rem; color:var(--grey);">Your library has been packed into a single, high-speed download file.</p>
+                        <a href="${status.url}" download="quimera_export.zip" class="btn" style="text-decoration:none; display:inline-block; margin-top:10px;">Download Library.zip</a>
+                    </div>`;
+                    document.body.appendChild(modal);
+                } else if (status.isBuilding) {
+                    const percent = Math.round((status.progress / Math.max(status.total, 1)) * 100);
+                    btn.innerText = `ZIPPING (${percent}%)`;
+                }
+            }, 1000);
+
         } catch (err) {
+            const btn = document.querySelector('button[onclick="exportZip()"]');
+            btn.innerText = "Export ZIP";
+            btn.disabled = false;
             alert("Export failed: " + err.message);
         }
     }

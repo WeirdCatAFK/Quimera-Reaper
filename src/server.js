@@ -79,11 +79,18 @@ app.get("/api/graph", (req, res) => {
   res.json({ nodes, links });
 });
 
-app.get("/api/export", (req, res) => {
-  const musicDir = path.resolve(process.env.MUSIC_OUTPUT_DIR || "./music_library");
-  const part = parseInt(req.query.part) || 0;
-  const chunkSize = parseInt(req.query.chunkSize) || 40; // 40 files per chunk (around 200MB, safely under Cloudflare timeout)
+let exportStatus = { isBuilding: false, progress: 0, total: 0, url: null, error: null };
 
+app.get("/api/export/status", (req, res) => {
+    res.json(exportStatus);
+});
+
+app.post("/api/export", (req, res) => {
+  if (exportStatus.isBuilding) return res.status(400).json({ error: "Export already in progress" });
+
+  const musicDir = path.resolve(process.env.MUSIC_OUTPUT_DIR || "./music_library");
+  const exportFile = path.join(__dirname, "../public/quimera_export.zip");
+  
   const getAllFiles = (dir) => {
     let results = [];
     if (!fs.existsSync(dir)) return results;
@@ -100,32 +107,39 @@ app.get("/api/export", (req, res) => {
     return results;
   };
 
-  try {
-    const allFiles = getAllFiles(musicDir);
-    const totalParts = Math.ceil(allFiles.length / chunkSize);
+  const allFiles = getAllFiles(musicDir);
+  if (allFiles.length === 0) return res.status(404).json({ error: "No files to export" });
 
-    if (req.query.info === 'true') {
-        return res.json({ totalFiles: allFiles.length, totalParts, chunkSize });
-    }
+  exportStatus = { isBuilding: true, progress: 0, total: allFiles.length, url: null, error: null };
 
-    if (allFiles.length === 0) return res.status(404).send("No files found.");
-    if (part >= totalParts) return res.status(404).send("Part not found.");
+  const output = fs.createWriteStream(exportFile);
+  const archive = archiver("zip", { zlib: { level: 0 } }); // Store only for speed, MP3s are already compressed
 
-    const chunkFiles = allFiles.slice(part * chunkSize, (part + 1) * chunkSize);
+  output.on("close", () => {
+      logger.success(`Archive built: ${archive.pointer()} total bytes`);
+      exportStatus.isBuilding = false;
+      exportStatus.url = "/quimera_export.zip";
+  });
 
-    res.attachment(`quimera_harvest_part${part + 1}_of_${totalParts}.zip`);
-    const archive = archiver("zip", { zlib: { level: 9 } });
-    archive.pipe(res);
-    
-    chunkFiles.forEach(file => {
-        archive.file(file, { name: path.relative(musicDir, file) });
-    });
-    
-    archive.finalize();
-  } catch (err) {
-    logger.error(`Export Error: ${err.message}`);
-    res.status(500).send(err.message);
-  }
+  archive.on("error", (err) => {
+      logger.error(`Archive Error: ${err.message}`);
+      exportStatus.isBuilding = false;
+      exportStatus.error = err.message;
+  });
+
+  archive.on("entry", () => {
+      exportStatus.progress++;
+  });
+
+  archive.pipe(output);
+  
+  allFiles.forEach(file => {
+      archive.file(file, { name: path.relative(musicDir, file) });
+  });
+
+  archive.finalize();
+
+  res.json({ message: "Export building started" });
 });
 
 logger.on("log", (log) => io.emit("log", log));
