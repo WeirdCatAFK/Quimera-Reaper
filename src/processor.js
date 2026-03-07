@@ -76,14 +76,17 @@ class Processor {
     const sanitizedTitle = this.sanitize(song.title);
     const sanitizedArtist = this.sanitize(song.albumArtist || song.artist);
     const sanitizedAlbum = this.sanitize(song.album);
-    const trackNum = song.trackNumber ? String(song.trackNumber).padStart(2, "0") : "00";
-    
+
+    let trackNumStr = "";
+    if (song.trackNumber) {
+        trackNumStr = String(song.trackNumber).padStart(2, "0") + " - ";
+    }
+
     const albumFolderName = song.year ? `${sanitizedAlbum} (${song.year})` : sanitizedAlbum;
-    const songFileName = `${trackNum} - ${sanitizedTitle}.mp3`;
+    const songFileName = `${trackNumStr}${sanitizedTitle}.mp3`;
 
     return path.join(this.outputDir, sanitizedArtist, albumFolderName, songFileName);
   }
-
   sanitize(str) {
     if (!str) return "Unknown";
     return str.replace(/[\r\n\t]/g, " ").replace(/[<>:"/\\|?*]/g, "_").trim().replace(/\s+/g, " ");

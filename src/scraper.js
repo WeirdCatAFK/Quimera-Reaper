@@ -111,37 +111,36 @@ class Scraper {
             const cleanParts = columnTexts.map(t => t.split("•")[0].trim()).filter(t => !junkPattern.test(t));
             artist = allLinks[0]?.innerText || cleanParts[0] || headerArtist || "Unknown Artist";
         } else {
-            const clean = (s) => {
-                if (!s) return "";
-                const yearPattern = /^\d{4}$/;
-                const timePattern = /^\d+:\d+/;
-                if (junkPattern.test(s) || yearPattern.test(s) || timePattern.test(s)) return "";
-                return s.split("•")[0].trim();
-            };
-
-            const candidates = columnTexts.map(clean).filter(v => v.length > 0);
-            
+            // PLAYLIST MODE: Strictly use the links inside the row, ignore the header
             if (allLinks.length >= 2) {
                 artist = allLinks[0].innerText;
                 album = allLinks[1].innerText;
             } else if (allLinks.length === 1) {
                 artist = allLinks[0].innerText;
-                album = candidates.find(c => c !== artist) || "Unknown Album";
+                album = "Unknown Album"; // If only one link, it's the artist, album is missing
             } else {
+                const clean = (s) => {
+                    if (!s) return "";
+                    const yearPattern = /^\d{4}$/;
+                    const timePattern = /^\d+:\d+/;
+                    if (junkPattern.test(s) || yearPattern.test(s) || timePattern.test(s)) return "";
+                    return s.split("•")[0].trim();
+                };
+                const candidates = columnTexts.map(clean).filter(v => v.length > 0 && v !== "Playlist autogenerada" && v !== "Auto-generated playlist");
                 artist = candidates[0] || "Unknown Artist";
-                album = candidates[1] || candidates[0] || "Unknown Album";
+                album = candidates[1] || "Unknown Album";
             }
         }
 
         const finalize = (s) => s.replace(/[\r\n\t]/g, " ").replace(/\s+/g, " ").trim();
 
         return {
-          trackNumber: index + 1,
-          year: year,
+          trackNumber: isAlbumPage ? index + 1 : "", // Don't use playlist index as track number
+          year: isAlbumPage ? year : "", // Year is often wrong in playlist context
           title: finalize(titleEl?.innerText || "Unknown Title"),
           artist: finalize(artist),
           album: finalize(album),
-          albumArtist: finalize(headerArtist || artist),
+          albumArtist: finalize(artist), // For playlists, track artist is album artist
           artwork: (imgEl?.src || "").replace("=w120-h120", "=w600-h600"),
           duration: item.querySelector(".fixed-columns yt-formatted-string")?.innerText || "0:00",
           url: item.querySelector(".title-column .title a")?.href
