@@ -170,22 +170,52 @@ class Scraper {
         }
 
         // 2. Extract Lyrics
-        const lyricsTabSelector = 'tp-yt-paper-tab[aria-label="Lyrics"], .tab-header[aria-label="Lyrics"]';
-        const lyricsTab = await page.$(lyricsTabSelector);
-        if (lyricsTab) {
-            await lyricsTab.click();
-            await new Promise(r => setTimeout(r, 2000)); // Wait for content load
-        }
+        // YouTube Music uses localized text for tabs (e.g., "Lyrics", "Letra"). We must find and click it.
+        const clicked = await page.evaluate(() => {
+            const tabs = Array.from(document.querySelectorAll('tp-yt-paper-tab'));
+            const lyricsTab = tabs.find(tab => {
+                const text = tab.innerText.trim().toLowerCase();
+                return text === 'lyrics' || text === 'letra' || text === 'paroles';
+            });
+            
+            const isDisabled = lyricsTab && (lyricsTab.hasAttribute('disabled') || lyricsTab.getAttribute('aria-disabled') === 'true');
 
-        lyrics = await page.evaluate(() => {
-            const syncedLines = Array.from(document.querySelectorAll(".ytmusic-lyrics-line-renderer"));
-            if (syncedLines.length > 0) {
-                return syncedLines.map(line => line.innerText.trim()).join("\n");
+            if (lyricsTab && !isDisabled) {
+                lyricsTab.click();
+                return true;
             }
-            const staticLyrics = document.querySelector("ytmusic-description-shelf-renderer #description-text") ||
-                                 document.querySelector(".ytmusic-description-shelf-renderer #description-text");
-            return staticLyrics?.innerText?.trim() || "";
+            return false;
         });
+
+        if (clicked) {
+            await new Promise(r => setTimeout(r, 2000)); // Wait for content to load
+
+            lyrics = await page.evaluate(() => {
+                // 1. Try synced lyrics first
+                const syncedLines = Array.from(document.querySelectorAll(".ytmusic-lyrics-line-renderer"));
+                if (syncedLines.length > 0) {
+                    return syncedLines.map(line => line.innerText.trim()).join("\n");
+                }
+                
+                // 2. Try static lyrics with extremely robust selectors
+                const staticLyricsNode = 
+                    document.querySelector("yt-formatted-string.ytmusic-description-shelf-renderer[split-lines]") ||
+                    document.querySelector("ytmusic-description-shelf-renderer yt-formatted-string") ||
+                    document.querySelector("yt-formatted-string.description.ytmusic-description-shelf-renderer") || 
+                    document.querySelector("ytmusic-description-shelf-renderer #description-text") ||
+                    document.querySelector(".ytmusic-description-shelf-renderer #description-text");
+                
+                return staticLyricsNode?.innerText?.trim() || "";
+            });
+
+            if (lyrics && lyrics.length > 0) {
+                logger.success(`Extracted ${lyrics.length} characters of lyrics.`);
+            } else {
+                logger.info("Lyrics tab opened, but no text could be parsed.");
+            }
+        } else {
+            logger.info("Lyrics tab is disabled or not found. Skipping extraction to agilize process.");
+        }
 
     } catch (err) {
         logger.error(`Error fetching lyrics/artwork: ${err.message}`);
