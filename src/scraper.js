@@ -95,12 +95,10 @@ class Scraper {
       
       return items.map((item, index) => {
         const titleEl = item.querySelector(".title-column .title");
-        const flexColumns = Array.from(item.querySelectorAll(".secondary-flex-columns yt-formatted-string"));
         const imgEl = item.querySelector("img");
         
-        const columnTexts = flexColumns.map(c => c.innerText.trim());
-        const allLinks = Array.from(item.querySelectorAll(".secondary-flex-columns a"));
-
+        const flexColumns = Array.from(item.querySelectorAll(".secondary-flex-columns .flex-column"));
+        
         let artist = "";
         let album = "";
 
@@ -108,39 +106,48 @@ class Scraper {
 
         if (isAlbumPage) {
             album = headerTitle || "Unknown Album";
+            const columnTexts = flexColumns.map(c => c.innerText.trim());
             const cleanParts = columnTexts.map(t => t.split("•")[0].trim()).filter(t => !junkPattern.test(t));
-            artist = allLinks[0]?.innerText || cleanParts[0] || headerArtist || "Unknown Artist";
+            const firstLink = flexColumns[0]?.querySelector("a");
+            artist = firstLink?.innerText || cleanParts[0] || headerArtist || "Unknown Artist";
         } else {
-            // PLAYLIST MODE: Strictly use the links inside the row, ignore the header
-            if (allLinks.length >= 2) {
-                artist = allLinks[0].innerText;
-                album = allLinks[1].innerText;
-            } else if (allLinks.length === 1) {
-                artist = allLinks[0].innerText;
-                album = "Unknown Album"; // If only one link, it's the artist, album is missing
-            } else {
-                const clean = (s) => {
-                    if (!s) return "";
-                    const yearPattern = /^\d{4}$/;
-                    const timePattern = /^\d+:\d+/;
-                    if (junkPattern.test(s) || yearPattern.test(s) || timePattern.test(s)) return "";
-                    return s.split("•")[0].trim();
-                };
-                const candidates = columnTexts.map(clean).filter(v => v.length > 0 && v !== "Playlist autogenerada" && v !== "Auto-generated playlist");
-                artist = candidates[0] || "Unknown Artist";
-                album = candidates[1] || "Unknown Album";
+            // PLAYLIST MODE: Use the separate flex columns to distinguish between Artist and Album
+            if (flexColumns.length > 0) {
+                // Column 0 is Artists. If there are multiple links (collaborations), take the first one.
+                const artistLinks = Array.from(flexColumns[0].querySelectorAll("a"));
+                if (artistLinks.length > 0) {
+                    artist = artistLinks[0].innerText.trim();
+                } else {
+                    artist = flexColumns[0].getAttribute("title") || flexColumns[0].innerText.trim();
+                }
+            }
+
+            if (flexColumns.length > 1) {
+                // Column 1 is usually the Album.
+                const albumLink = flexColumns[1].querySelector("a");
+                if (albumLink) {
+                    album = albumLink.innerText.trim();
+                } else {
+                    album = flexColumns[1].getAttribute("title") || flexColumns[1].innerText.trim();
+                }
+            }
+
+            // Fallbacks for completely unstructured text
+            if (!artist) artist = "Unknown Artist";
+            if (!album || album === "Playlist autogenerada" || album === "Auto-generated playlist") {
+                 album = "Unknown Album";
             }
         }
 
         const finalize = (s) => s.replace(/[\r\n\t]/g, " ").replace(/\s+/g, " ").trim();
 
         return {
-          trackNumber: isAlbumPage ? index + 1 : "", // Don't use playlist index as track number
-          year: isAlbumPage ? year : "", // Year is often wrong in playlist context
+          trackNumber: isAlbumPage ? index + 1 : "", 
+          year: isAlbumPage ? year : "", 
           title: finalize(titleEl?.innerText || "Unknown Title"),
           artist: finalize(artist),
           album: finalize(album),
-          albumArtist: finalize(artist), // For playlists, track artist is album artist
+          albumArtist: finalize(artist),
           artwork: (imgEl?.src || "").replace("=w120-h120", "=w600-h600"),
           duration: item.querySelector(".fixed-columns yt-formatted-string")?.innerText || "0:00",
           url: item.querySelector(".title-column .title a")?.href
@@ -160,13 +167,16 @@ class Scraper {
     try {
         // 1. Extract High-Res Artwork
         const artworkUrl = await page.evaluate(() => {
-            const img = document.querySelector('ytmusic-player img#img');
+            const img = document.querySelector('#song-image img#img') || 
+                        document.querySelector('ytmusic-player img#img') ||
+                        document.querySelector('.ytmusic-player img#img');
             return img ? img.src : null;
         });
         
         if (artworkUrl) {
             // Remove sizing parameters to get the max resolution original
             highResArtwork = artworkUrl.split("=")[0];
+            logger.success(`Extracted absolute high-res cover.`);
         }
 
         // 2. Extract Lyrics
