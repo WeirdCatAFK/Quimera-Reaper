@@ -6,6 +6,7 @@ const path = require("path");
 const fs = require("fs");
 const archiver = require("archiver");
 const crypto = require("crypto");
+const cookieParser = require("cookie-parser");
 
 const agent = require("./index");
 const state = require("./state");
@@ -18,6 +19,7 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 
 // --- Custom Authentication Middleware ---
 const UI_TOKEN = process.env.UI_PASSWORD ? crypto.createHash('sha256').update(process.env.UI_PASSWORD).digest('hex') : null;
@@ -25,7 +27,7 @@ const UI_TOKEN = process.env.UI_PASSWORD ? crypto.createHash('sha256').update(pr
 app.post("/api/login", (req, res) => {
     if (!process.env.UI_PASSWORD) return res.json({ success: true });
     if (req.body.password === process.env.UI_PASSWORD) {
-        res.cookie('qr_auth', UI_TOKEN, { maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: false }); // httpOnly false so JS can verify it exists if needed, but not strictly required
+        res.cookie('qr_auth', UI_TOKEN, { maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: false });
         res.json({ success: true });
     } else {
         res.status(401).json({ error: "Invalid password" });
@@ -35,12 +37,12 @@ app.post("/api/login", (req, res) => {
 app.use((req, res, next) => {
     if (!process.env.UI_PASSWORD) return next();
 
-    // Allow static assets required for the login page
+    // 1. Allow static assets required for the login page to bypass auth
     if (req.path === '/api/login' || req.path === '/login.html' || req.path === '/icon.ico' || req.path === '/Quimera.png' || req.path === '/Cherry.png') {
         return next();
     }
 
-    // 1. Check for API Key in headers or query (For Bots)
+    // 2. Check for API Key in headers or query (For Bots like quimera-mirror)
     const apiKey = req.headers['x-api-key'] || req.query.apikey;
     if (apiKey) {
         const settings = settingsManager.get();
@@ -49,30 +51,33 @@ app.use((req, res, next) => {
         }
     }
 
-    // 2. Check for UI Auth Cookie
-    const cookies = req.headers.cookie || '';
-    if (cookies.includes(`qr_auth=${UI_TOKEN}`)) {
+    // 3. Check for UI Auth Cookie (For human users)
+    if (req.cookies && req.cookies.qr_auth === UI_TOKEN) {
         return next();
     }
 
-    // If browser requested the main dashboard or root, serve the login page
+    // 4. If neither API Key nor Cookie is present, deny access.
+    // If they requested the root dashboard, send them to the login UI.
     if (req.path === '/' || req.path === '/index.html') {
-        return res.sendFile(path.join(__dirname, "../public/login.html"));
+        return res.redirect('/login.html');
     }
 
+    // Otherwise, it's an API call, return a strict 401.
     res.status(401).json({ error: "Unauthorized access." });
 });
 
 // Secure WebSocket connections
 io.use((socket, next) => {
     if (!process.env.UI_PASSWORD) return next();
-    const cookies = socket.request.headers.cookie || '';
-    if (cookies.includes(`qr_auth=${UI_TOKEN}`)) return next();
+
+    // Parse cookies from the websocket handshake header
+    const cookieHeader = socket.request.headers.cookie || '';
+    if (cookieHeader.includes(`qr_auth=${UI_TOKEN}`)) return next();
+
     return next(new Error('Authentication error'));
 });
 
 app.use(express.static(path.join(__dirname, "../public")));
-
 // Expose the music directory for Quimera Mirror to download files incrementally
 const musicDir = path.resolve(process.env.MUSIC_OUTPUT_DIR || "./music_library");
 app.use("/music", express.static(musicDir));
