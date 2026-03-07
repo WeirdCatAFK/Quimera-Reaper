@@ -42,7 +42,7 @@
                 body: JSON.stringify({ password: pwd })
             });
             if (res.ok) {
-                window.location.reload();
+                window.location.href = "/";
             } else {
                 document.getElementById('err').innerText = "ACCESS DENIED.";
             }
