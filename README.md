@@ -5,8 +5,9 @@ An autonomous music harvesting agent that mirrors your YouTube Music library to 
 ## 🚀 Key Features
 - **Proxy Harvesting:** Uses `yt-dlp` with browser-cookie injection for 100% reliable, high-quality audio capture.
 - **Library Mirroring:** Instantly creates tagged placeholders so MusicBee sees your library immediately.
-- **Smart Metadata:** Automatically embeds high-resolution covers (600x600) and full ID3v2 tags.
-- **Stealth Mode:** Mimics human listening behavior with random delays and session caps.
+- **Smart Metadata:** Automatically embeds absolute maximum resolution covers and full ID3v2 tags.
+- **Autonomous Crons:** Automatically mirrors weekly and reaps hourly during daytime hours.
+- **Cloudflare-Safe Exports:** Zip your entire library directly from the dashboard using background write streams to bypass reverse-proxy timeouts.
 - **Modern Dashboard:** High-contrast console for real-time monitoring and control.
 
 ---
@@ -34,77 +35,65 @@ sudo apt-get install -y libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 
 
 ---
 
-## 📦 Installation
+## 📦 Installation & Setup
 
 1. **Clone & Install:**
    ```bash
+   git clone https://github.com/WeirdCatAFK/Quimera-Reaper.git
+   cd Quimera-Reaper
    npm install
-   2. **Configure Environment:**
-      Copy `.env.example` to `.env` and fill in:
-      - `BROWSER_EXECUTABLE_PATH`: Usually `C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe`
-      - `BRAVE_PROFILE`: Check `brave://version`. If your profile isn't "Default", put the name here (e.g., `Profile 1`).
-      - `HEADLESS`: Set to `true` for background operation (Server) or `false` for visible windows (Desktop).
-      - `FFMPEG_PATH`: The agent will try to find it, but you can set the absolute path to `ffmpeg.exe` if it fails.
-
-   ---
-
-   ## 🛠️ Server vs Desktop Mode
-
-   ### Desktop Mode (`HEADLESS=false`)
-   Recommended for initial setup and logging in. You can see the browser open, handle CAPTCHAs, and verify that YouTube Music is logged into your account.
-
-   ### Server Mode (`HEADLESS=true`)
-   Recommended for long-term background operation on servers (Debian, Ubuntu, etc.). The agent will launch Brave in a special "silent" engine (`--headless=old`) that requires no physical display or window manager. Ensure all other Brave instances using the same profile are closed to avoid database locks.
-
-   ---
-
-   ## 🚜 The Harvesting Workflow
-   Run the agent once:
-   ```bash
-   npm start
    ```
-   Open `http://localhost:3000`. If you need to log in or handle a captcha, ensure no other Brave windows are open, and the agent will use your existing system profile. You can also manually open Brave, log into YouTube Music, and then close it before starting the agent.
+
+2. **Configure Environment:**
+   Copy `.env.example` to `.env`. Critical variables:
+   - `BROWSER_EXECUTABLE_PATH`: Path to your Brave browser (e.g., `/usr/bin/brave-browser` or `C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe`).
+   - `CRON_REAP`: Custom cron schedule for background recording (Default: `0 8-22 * * *` - Hourly from 8am to 10pm).
+   - `CRON_MIRROR`: Custom cron schedule for library syncing (Default: `0 2 * * 0` - 2 AM every Sunday).
 
 ---
 
-## 🔑 Authenticating on a Headless Server
+## 🔑 Authentication (The Bot Profile)
 
-To use your logged-in YouTube Music account on a Linux server, you must establish a session one time.
+To ensure maximum stability and prevent Linux Keyrings from wiping your cookies, Quimera Reaper uses a dedicated `bot_profile` folder located inside the project directory. It does not touch your main desktop profile.
 
-### Method 1: Profile Migration (Recommended)
-The easiest way to authenticate is to copy your existing login session from your desktop:
-1. On Windows, locate your Brave profile: `C:\Users\[User]\AppData\Local\BraveSoftware\Brave-Browser\User Data\Default`
-2. Copy the entire `Default` folder to your server: `/home/[user]/.config/BraveSoftware/Brave-Browser/Default`
-3. Ensure the agent is set to `HEADLESS=true` and `BRAVE_PROFILE=Default`.
+**You must authenticate this profile once before starting the agent:**
 
-### Method 2: Manual Login
-If you have a GUI/VNC access to your server:
-1. Set `HEADLESS=false` in your `.env`.
-2. Run `npm start`, log into YouTube Music, then close the browser.
-3. Switch back to `HEADLESS=true`.
+1. If you are on a Linux server, ensure your terminal has display access (or run this via VNC/local desktop):
+   ```bash
+   npm run login
+   ```
+2. A Brave window will open. Navigate to YouTube Music and log in.
+3. You have 10 minutes. Once you are logged in and see your library, simply **close the browser window**.
+4. The agent is now permanently authenticated.
 
 ---
 
 ## 🚜 The Harvesting Workflow
 
-1. **Mirror Library:** Select your targets (Likes/Albums) and click **Mirror Library**.
+1. **Start the Server:**
+   ```bash
+   npm start
+   ```
+2. Open `http://localhost:3000` (or your server's IP) in your browser.
+3. **Mirror Library:** Select your targets (Likes/Albums) and click **Mirror Library**.
    - This creates the folders and 0-byte MP3 "placeholders."
-   - MusicBee can now see your entire library structure.
-2. **Start Recording:** Click **Start Recording**.
-   - The agent will process the "Pending Records" queue one by one.
-   - It exports cookies from your browser to authenticate the download.
-   - It overwrites placeholders with real, high-quality MP3s.
-3. **Resetting:** If you delete your music folder or want a fresh start, click **"Wipe Memory"** to clear the sync history.
+4. **Record Queue:** Click **Record Queue**.
+   - The agent will process the pending tracks in batches (configurable in the UI parameters).
+   - It will automatically pause and resume based on the background cron schedule.
+5. **Export ZIP:** Click **Export ZIP** to pack your finished music library into a single, downloadable archive. The server builds this via a local write stream, making it immune to Cloudflare/Nginx proxy timeouts.
+6. **Factory Reset:** If you delete your music folder or want a fresh start, click **Factory Reset** to completely purge the queue, history, and library directories.
 
 ---
 
 ## 📁 Project Structure
 - `music_library/`: Your final collection.
+- `bot_profile/`: The isolated browser database used by the agent.
 - `logs/`: Detailed session logs for debugging.
 - `settings.json`: Persisted dashboard preferences.
 - `sync_history.json`: Database of mirrored/harvested tracks.
+- `subscriptions.json`: Queue of tracks waiting to be recorded.
 
 ---
 
 ## 🔐 System Architecture
-Technical details regarding browser integration and session persistence can be found in `TRUESESSION.md` for those who might be interested.
+Technical details regarding browser integration and session persistence can be found in `TRUESESSION.md`.
