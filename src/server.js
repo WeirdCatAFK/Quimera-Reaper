@@ -19,8 +19,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "../public")));
 
+// Expose the music directory for Quimera Mirror to download files incrementally
+const musicDir = path.resolve(process.env.MUSIC_OUTPUT_DIR || "./music_library");
+app.use("/music", express.static(musicDir));
+
 app.get("/api/settings", (req, res) => res.json(settingsManager.get()));
 app.post("/api/settings", (req, res) => res.json(settingsManager.save(req.body)));
+
+// Expose the complete history for Quimera Mirror to compare state
+app.get("/api/history", (req, res) => res.json(state.history));
 
 app.post("/api/harvest", (req, res) => {
   agent.syncAll(req.body.targets);
