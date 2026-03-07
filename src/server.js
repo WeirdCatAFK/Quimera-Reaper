@@ -5,6 +5,7 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 const archiver = require("archiver");
+const crypto = require("crypto");
 
 const agent = require("./index");
 const state = require("./state");
@@ -17,11 +18,47 @@ const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(cors());
 app.use(express.json());
+
+// --- Authentication Middleware ---
+app.use((req, res, next) => {
+    if (!process.env.UI_PASSWORD) return next();
+
+    // 1. Check for API Key in headers
+    const apiKey = req.headers['x-api-key'] || req.query.apikey;
+    if (apiKey) {
+        const settings = settingsManager.get();
+        if (settings.apiKeys && settings.apiKeys.includes(apiKey)) {
+            return next();
+        }
+    }
+
+    // 2. Check Basic Auth (for the Web UI)
+    const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+    const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
+
+    if (login && password === process.env.UI_PASSWORD) {
+        return next();
+    }
+
+    // Deny access
+    res.set('WWW-Authenticate', 'Basic realm="Quimera Reaper Dashboard"');
+    res.status(401).send('Authentication required. Username can be anything, password is in your .env');
+});
+
 app.use(express.static(path.join(__dirname, "../public")));
 
 // Expose the music directory for Quimera Mirror to download files incrementally
 const musicDir = path.resolve(process.env.MUSIC_OUTPUT_DIR || "./music_library");
 app.use("/music", express.static(musicDir));
+
+app.post("/api/keys", (req, res) => {
+    const key = "qr_" + crypto.randomBytes(16).toString("hex");
+    const settings = settingsManager.get();
+    if (!settings.apiKeys) settings.apiKeys = [];
+    settings.apiKeys.push(key);
+    settingsManager.save(settings);
+    res.json({ key });
+});
 
 app.get("/api/settings", (req, res) => res.json(settingsManager.get()));
 app.post("/api/settings", (req, res) => res.json(settingsManager.save(req.body)));
