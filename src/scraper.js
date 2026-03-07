@@ -153,9 +153,23 @@ class Scraper {
     return songs;
   }
 
-  async getLyrics(page) {
+  async getLyricsAndArtwork(page) {
+    let lyrics = "";
+    let highResArtwork = null;
+
     try {
-        // 1. Try to click the Lyrics tab in the right panel
+        // 1. Extract High-Res Artwork
+        const artworkUrl = await page.evaluate(() => {
+            const img = document.querySelector('ytmusic-player img#img');
+            return img ? img.src : null;
+        });
+        
+        if (artworkUrl) {
+            // Remove sizing parameters to get the max resolution original
+            highResArtwork = artworkUrl.split("=")[0];
+        }
+
+        // 2. Extract Lyrics
         const lyricsTabSelector = 'tp-yt-paper-tab[aria-label="Lyrics"], .tab-header[aria-label="Lyrics"]';
         const lyricsTab = await page.$(lyricsTabSelector);
         if (lyricsTab) {
@@ -163,24 +177,21 @@ class Scraper {
             await new Promise(r => setTimeout(r, 2000)); // Wait for content load
         }
 
-        // 2. Try to extract lyrics (check both timed and static containers)
-        const lyricsData = await page.evaluate(() => {
-            // Check for synced lyrics first (list of lines)
+        lyrics = await page.evaluate(() => {
             const syncedLines = Array.from(document.querySelectorAll(".ytmusic-lyrics-line-renderer"));
             if (syncedLines.length > 0) {
                 return syncedLines.map(line => line.innerText.trim()).join("\n");
             }
-
-            // Fallback to static description shelf
             const staticLyrics = document.querySelector("ytmusic-description-shelf-renderer #description-text") ||
                                  document.querySelector(".ytmusic-description-shelf-renderer #description-text");
             return staticLyrics?.innerText?.trim() || "";
         });
 
-        return lyricsData;
     } catch (err) {
-        return "";
+        logger.error(`Error fetching lyrics/artwork: ${err.message}`);
     }
+
+    return { lyrics, highResArtwork };
   }
 
   async autoScroll(page) {

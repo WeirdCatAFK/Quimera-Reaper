@@ -82,7 +82,11 @@ class ActionsManager {
           
           const page = await browserManager.newPage();
           await page.goto(track.url, { waitUntil: "networkidle2" });
-          track.lyrics = await scraper.getLyrics(page);
+          
+          const extras = await scraper.getLyricsAndArtwork(page);
+          track.lyrics = extras.lyrics;
+          if (extras.highResArtwork) track.artwork = extras.highResArtwork;
+          
           await page.close();
 
           await harvester.harvest(track, tempPath, cookiePath, (m, t) => logger.log(m, t));
