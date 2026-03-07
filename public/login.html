@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quimera Reaper - Restricted</title>
+    <link rel="icon" href="/icon.ico?v=3" type="image/x-icon">
+    <style>
+        :root { --bg: #181413; --pink: #DD4A62; --red: #DA0000; --mauve: #AE3D4B; --text: #ffffff; --grey: #71717a; }
+        body { background-color: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; height: 100vh; margin: 0; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .card { background: #1c1817; border: 1px solid var(--pink); padding: 40px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 0 40px rgba(221, 74, 98, 0.2); position: relative; z-index: 2; width: 300px;}
+        img.mascot { height: 160px; filter: drop-shadow(0 0 20px rgba(221, 74, 98, 0.4)); margin-bottom: 25px; }
+        h1 { color: var(--red); margin: 0 0 5px 0; font-size: 1.5rem; text-transform: uppercase; font-weight: 900; letter-spacing: 2px; text-shadow: 0 0 10px rgba(218,0,0,0.4); text-align: center;}
+        p { color: var(--grey); font-size: 0.8rem; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px;}
+        input { background: #000; border: 1px solid var(--mauve); color: white; padding: 12px; font-size: 1rem; width: 100%; box-sizing: border-box; text-align: center; outline: none; margin-bottom: 15px; font-family: monospace; letter-spacing: 2px;}
+        input:focus { border-color: var(--pink); box-shadow: 0 0 10px rgba(221, 74, 98, 0.3);}
+        button { width: 100%; padding: 14px; border: 1px solid var(--pink); background: transparent; color: var(--pink); font-weight: 900; text-transform: uppercase; cursor: pointer; letter-spacing: 3px; transition: all 0.2s; font-size: 0.9rem;}
+        button:hover { background: var(--pink); color: #000; }
+        .decoration { position: absolute; opacity: 0.3; pointer-events: none; z-index: 1; filter: saturate(1.5) hue-rotate(-10deg); }
+        .dec-1 { bottom: -10%; left: -5%; height: 80%; transform: rotate(10deg); }
+        .dec-2 { top: -10%; right: -5%; height: 80%; transform: rotate(180deg) scaleX(-1); }
+    </style>
+</head>
+<body>
+    <img src="/Cherry.png" class="decoration dec-1">
+    <img src="/Cherry.png" class="decoration dec-2">
+    <div class="card">
+        <img src="/Quimera.png" class="mascot">
+        <h1>RESTRICTED ACCESS</h1>
+        <p>Core Password Required</p>
+        <input type="password" id="pwd" placeholder="••••••••" onkeydown="if(event.key === 'Enter') login()">
+        <button onclick="login()">Authenticate</button>
+        <div id="err" style="color:var(--red); font-size:0.8rem; margin-top:15px; height:15px; font-weight: bold; letter-spacing: 1px;"></div>
+    </div>
+    <script>
+        async function login() {
+            const pwd = document.getElementById('pwd').value;
+            document.getElementById('err').innerText = "";
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pwd })
+            });
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                document.getElementById('err').innerText = "ACCESS DENIED.";
+            }
+        }
+    </script>
+</body>
+</html>

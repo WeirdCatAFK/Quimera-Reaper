@@ -190,6 +190,16 @@
     }
 
     async function startRecording() { fetch('/api/reap', { method: 'POST' }); }
+    async function generateApiKey() {
+        const res = await fetch('/api/keys', { method: 'POST' });
+        if (res.ok) {
+            const data = await res.json();
+            document.getElementById('api-key-display').innerText = data.key;
+        } else {
+            alert("Failed to generate API Key.");
+        }
+    }
+
     async function killTasks() { fetch('/api/kill', { method: 'POST' }); }
     async function exportZip() { 
         try {

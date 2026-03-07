@@ -19,11 +19,28 @@ const io = new Server(server, { cors: { origin: "*" } });
 app.use(cors());
 app.use(express.json());
 
-// --- Authentication Middleware ---
+// --- Custom Authentication Middleware ---
+const UI_TOKEN = process.env.UI_PASSWORD ? crypto.createHash('sha256').update(process.env.UI_PASSWORD).digest('hex') : null;
+
+app.post("/api/login", (req, res) => {
+    if (!process.env.UI_PASSWORD) return res.json({ success: true });
+    if (req.body.password === process.env.UI_PASSWORD) {
+        res.cookie('qr_auth', UI_TOKEN, { maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: false }); // httpOnly false so JS can verify it exists if needed, but not strictly required
+        res.json({ success: true });
+    } else {
+        res.status(401).json({ error: "Invalid password" });
+    }
+});
+
 app.use((req, res, next) => {
     if (!process.env.UI_PASSWORD) return next();
 
-    // 1. Check for API Key in headers
+    // Allow static assets required for the login page
+    if (req.path === '/api/login' || req.path === '/login.html' || req.path === '/icon.ico' || req.path === '/Quimera.png' || req.path === '/Cherry.png') {
+        return next();
+    }
+
+    // 1. Check for API Key in headers or query (For Bots)
     const apiKey = req.headers['x-api-key'] || req.query.apikey;
     if (apiKey) {
         const settings = settingsManager.get();
@@ -32,17 +49,26 @@ app.use((req, res, next) => {
         }
     }
 
-    // 2. Check Basic Auth (for the Web UI)
-    const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
-    const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
-
-    if (login && password === process.env.UI_PASSWORD) {
+    // 2. Check for UI Auth Cookie
+    const cookies = req.headers.cookie || '';
+    if (cookies.includes(`qr_auth=${UI_TOKEN}`)) {
         return next();
     }
 
-    // Deny access
-    res.set('WWW-Authenticate', 'Basic realm="Quimera Reaper Dashboard"');
-    res.status(401).send('Authentication required. Username can be anything, password is in your .env');
+    // If browser requested the main dashboard or root, serve the login page
+    if (req.path === '/' || req.path === '/index.html') {
+        return res.sendFile(path.join(__dirname, "../public/login.html"));
+    }
+
+    res.status(401).json({ error: "Unauthorized access." });
+});
+
+// Secure WebSocket connections
+io.use((socket, next) => {
+    if (!process.env.UI_PASSWORD) return next();
+    const cookies = socket.request.headers.cookie || '';
+    if (cookies.includes(`qr_auth=${UI_TOKEN}`)) return next();
+    return next(new Error('Authentication error'));
 });
 
 app.use(express.static(path.join(__dirname, "../public")));
